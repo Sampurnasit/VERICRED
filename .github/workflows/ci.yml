@@ -1,0 +1,112 @@
+name: VERICRED Monorepo CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Lint, Typecheck, Tests & Build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_DB: vericred_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10.5.2
+
+      - name: Restore pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pnpm-store
+            node_modules
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install Monorepo Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Shared Packages
+        run: |
+          pnpm --filter @vericred/shared build
+          pnpm --filter @vericred/crypto build
+          pnpm --filter @vericred/credential-schema build
+          pnpm --filter @vericred/contract-client build
+
+      - name: TypeScript Typecheck Across All Workspaces
+        run: pnpm -r typecheck
+
+      - name: Prisma Client Generation & Schema Validation
+        run: pnpm --filter @vericred/api db:generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/vericred_test?schema=public
+
+      - name: Cryptography Package Unit Tests
+        run: pnpm --filter @vericred/crypto test
+
+      - name: Zero-Knowledge Circuits & Groth16 Tests
+        run: pnpm --filter @vericred/zk test
+
+      - name: Backend API & Demonstration Scenarios 1-5 Tests
+        run: pnpm --filter @vericred/api test
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/vericred_test?schema=public
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: super_secure_ci_test_jwt_secret_token_32_chars_minimum
+
+      - name: Smart Contracts Hardhat Unit Tests
+        run: pnpm --filter @vericred/blockchain test
+
+      - name: Next.js Frontend Production Build
+        run: pnpm --filter @vericred/web build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+          NEXT_PUBLIC_CHAIN_ID: 80002
+          NEXT_PUBLIC_CHAIN_NAME: "Polygon Amoy Testnet"
+          NEXT_PUBLIC_RPC_URL: https://rpc-amoy.polygon.technology
+          NEXT_PUBLIC_INSTITUTION_REGISTRY_ADDRESS: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+          NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+          NEXT_PUBLIC_REVOCATION_REGISTRY_ADDRESS: 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0

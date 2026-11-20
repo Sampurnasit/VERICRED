@@ -1,0 +1,10 @@
+{
+  "network": "amoy",
+  "chainId": 80002,
+  "deployedAt": "2026-11-20T15:46:43.267Z",
+  "contracts": {
+    "InstitutionRegistry": "0xF250601Ca003f6F97ae6a5b24eFFD99FC2D95266",
+    "CredentialRegistry": "0x35E7F512031B4F46c02e76bb1445E2DC38C7AB22",
+    "RevocationRegistry": "0xaacEAe5171E339763C3Cb68C5d2841816058DF78"
+  }
+}

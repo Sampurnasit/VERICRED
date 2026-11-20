@@ -1,0 +1,256 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  ADMIN
+  INSTITUTION
+  STUDENT
+  VERIFIER
+}
+
+enum InstitutionStatus {
+  PENDING
+  APPROVED
+  SUSPENDED
+  REJECTED
+}
+
+enum ApprovalAction {
+  APPROVE
+  SUSPEND
+  REJECT
+  REACTIVATE
+}
+
+enum KeyType {
+  BABYJUBJUB_EDDSA
+  ED25519
+  SECP256K1
+}
+
+enum CredentialStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum VerificationType {
+  STANDARD_QR
+  ZK_PROOF
+  DIRECT_LOOKUP
+}
+
+enum VerificationResult {
+  VALID
+  INVALID
+  REVOKED
+  EXPIRED
+}
+
+enum RevocationReason {
+  UNSPECIFIED
+  DISCIPLINARY
+  ADMIN_ERROR
+  RETRACTED
+}
+
+model User {
+  id              String                @id @default(uuid())
+  email           String                @unique
+  passwordHash    String
+  role            UserRole              @default(STUDENT)
+  firstName       String
+  lastName        String
+  isEmailVerified Boolean               @default(false)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  institution     Institution?
+  student         Student?
+  auditLogs       AuditLog[]
+  approvalsGiven  InstitutionApproval[] @relation("AdminReviewer")
+
+  @@index([email])
+  @@index([role])
+}
+
+model Institution {
+  id                  String                @id @default(uuid())
+  userId              String                @unique
+  legalName           String                @unique
+  shortCode           String                @unique
+  website             String
+  blockchainAddress   String                @unique
+  status              InstitutionStatus     @default(PENDING)
+  accreditationDocUrl String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approvals           InstitutionApproval[]
+  keys                InstitutionKey[]
+  students            Student[]
+  credentials         Credential[]
+  revocations         RevocationRecord[]
+
+  @@index([status])
+  @@index([blockchainAddress])
+}
+
+model InstitutionApproval {
+  id             String         @id @default(uuid())
+  institutionId  String
+  reviewerId     String
+  action         ApprovalAction
+  decisionNotes  String
+  onChainTxHash  String?
+  createdAt      DateTime       @default(now())
+
+  institution    Institution    @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  reviewer       User           @relation("AdminReviewer", fields: [reviewerId], references: [id])
+
+  @@index([institutionId])
+  @@index([reviewerId])
+}
+
+model InstitutionKey {
+  id             String      @id @default(uuid())
+  institutionId  String
+  keyIdentifier  String      @unique
+  keyType        KeyType     @default(BABYJUBJUB_EDDSA)
+  publicKeyX     String
+  publicKeyY     String
+  kmsKeyArn      String
+  isActive       Boolean     @default(true)
+  validFrom      DateTime    @default(now())
+  validUntil     DateTime?
+
+  institution    Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, isActive])
+}
+
+model Student {
+  id               String                   @id @default(uuid())
+  userId           String                   @unique
+  institutionId    String
+  enrollmentNumber String
+  department       String
+  batchYear        Int
+  createdAt        DateTime                 @default(now())
+
+  user             User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution      Institution              @relation(fields: [institutionId], references: [id])
+  credentials      Credential[]
+  presentations    CredentialPresentation[]
+
+  @@unique([institutionId, enrollmentNumber])
+  @@index([institutionId])
+}
+
+model Credential {
+  id             String                   @id @default(uuid())
+  credentialId   String                   @unique
+  institutionId  String
+  studentId      String
+  credentialType String                   @default("DegreeCertificate")
+  degreeName     String
+  department     String
+  academicSession String?
+  graduationYear Int
+  cgpaRaw        Decimal                  @db.Decimal(4, 2)
+  cgpaScaled     Int
+  blindingSalt   String
+  commitment     String                   @unique
+  signature      String
+  status         CredentialStatus         @default(ACTIVE)
+  onChainTxHash  String?
+  issuedAt       DateTime                 @default(now())
+  expiresAt      DateTime?
+
+  institution    Institution              @relation(fields: [institutionId], references: [id])
+  student        Student                  @relation(fields: [studentId], references: [id])
+  presentations  CredentialPresentation[]
+  revocation     RevocationRecord?
+  verifications  VerificationRequest[]
+
+  @@index([studentId])
+  @@index([institutionId])
+  @@index([commitment])
+}
+
+model CredentialPresentation {
+  id              String                @id @default(uuid())
+  credentialId    String
+  holderId        String
+  verifierNonce   String                @unique
+  disclosedClaims Json
+  isConsumed      Boolean               @default(false)
+  expiresAt       DateTime
+  createdAt       DateTime              @default(now())
+
+  credential      Credential            @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  holder          Student               @relation(fields: [holderId], references: [id])
+  verifications   VerificationRequest[]
+
+  @@index([credentialId])
+  @@index([holderId])
+  @@index([verifierNonce])
+}
+
+model VerificationRequest {
+  id               String                  @id @default(uuid())
+  presentationId   String?
+  credentialId     String?
+  verificationType VerificationType
+  resultStatus     VerificationResult
+  zkThreshold      Int?
+  clientIpHash     String
+  userAgent        String?
+  executedAt       DateTime                @default(now())
+
+  presentation     CredentialPresentation? @relation(fields: [presentationId], references: [id])
+  credential       Credential?             @relation(fields: [credentialId], references: [id])
+
+  @@index([presentationId])
+  @@index([credentialId])
+  @@index([resultStatus])
+}
+
+model RevocationRecord {
+  id            String           @id @default(uuid())
+  credentialId  String           @unique
+  institutionId String
+  reasonCode    RevocationReason @default(UNSPECIFIED)
+  reasonDetails String
+  onChainTxHash String           @unique
+  revokedAt     DateTime         @default(now())
+
+  credential    Credential       @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  institution   Institution      @relation(fields: [institutionId], references: [id])
+
+  @@index([institutionId])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  action     String
+  entityType String
+  entityId   String
+  ipAddress  String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  actor      User     @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([action])
+  @@index([entityType, entityId])
+}

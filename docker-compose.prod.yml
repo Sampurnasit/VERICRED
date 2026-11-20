@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vericred-postgres-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-vericred_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vericred_secure_password_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-vericred_production}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vericred_admin} -d ${POSTGRES_DB:-vericred_production}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vericred-internal
+
+  redis:
+    image: redis:7-alpine
+    container_name: vericred-redis-prod
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-vericred_redis_pass_2026}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_prod_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-vericred_redis_pass_2026}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vericred-internal
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: vericred-api-prod
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-vericred_admin}:${POSTGRES_PASSWORD:-vericred_secure_password_2026}@postgres:5432/${POSTGRES_DB:-vericred_production}?schema=public
+      REDIS_URL: redis://:${REDIS_PASSWORD:-vericred_redis_pass_2026}@redis:6379
+      JWT_SECRET: ${JWT_SECRET:-vericred_super_secret_jwt_key_production_2026_at_least_32_chars}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      POLYGON_AMOY_RPC_URL: ${POLYGON_AMOY_RPC_URL:-https://rpc-amoy.polygon.technology}
+      INSTITUTION_REGISTRY_ADDRESS: ${INSTITUTION_REGISTRY_ADDRESS:-0x5FbDB2315678afecb367f032d93F642f64180aa3}
+      CREDENTIAL_REGISTRY_ADDRESS: ${CREDENTIAL_REGISTRY_ADDRESS:-0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512}
+      REVOCATION_REGISTRY_ADDRESS: ${REVOCATION_REGISTRY_ADDRESS:-0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0}
+    ports:
+      - "4000:4000"
+    networks:
+      - vericred-internal
+      - vericred-public
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: vericred-web-prod
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+      NEXT_PUBLIC_CHAIN_ID: "80002"
+      NEXT_PUBLIC_CHAIN_NAME: "Polygon Amoy Testnet"
+      NEXT_PUBLIC_RPC_URL: ${NEXT_PUBLIC_RPC_URL:-https://rpc-amoy.polygon.technology}
+      NEXT_PUBLIC_INSTITUTION_REGISTRY_ADDRESS: ${INSTITUTION_REGISTRY_ADDRESS:-0x5FbDB2315678afecb367f032d93F642f64180aa3}
+      NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS: ${CREDENTIAL_REGISTRY_ADDRESS:-0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512}
+      NEXT_PUBLIC_REVOCATION_REGISTRY_ADDRESS: ${REVOCATION_REGISTRY_ADDRESS:-0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0}
+    ports:
+      - "3000:3000"
+    networks:
+      - vericred-public
+
+networks:
+  vericred-internal:
+    driver: bridge
+  vericred-public:
+    driver: bridge
+
+volumes:
+  postgres_prod_data:
+  redis_prod_data:
