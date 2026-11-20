@@ -12,3 +12,6 @@ coverage
 typechain-types
 cache
 artifacts
+*.tsbuildinfo
+test-results/
+playwright-report/

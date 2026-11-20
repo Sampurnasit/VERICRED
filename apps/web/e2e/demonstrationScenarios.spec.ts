@@ -1,98 +1,132 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('VERICRED Frontend E2E Demonstration Scenarios 1–5', () => {
+test.describe('VERICRED Frontend E2E Demonstration Scenarios 1–6', () => {
   test('Landing Page & Navigation to Demonstration Portals', async ({ page }) => {
     await page.goto('/');
 
     // Check header branding and navigation links
-    await expect(page.locator('text=VERICRED')).toBeVisible();
-    await expect(page.locator('text=Public Verification Portal')).toBeVisible();
+    await expect(page.locator('text=VERICRED').first()).toBeVisible();
+    await expect(page.locator('a:has-text("Verify Credential")').first()).toBeVisible();
+    await expect(page.locator('a:has-text("Student Wallet")').first()).toBeVisible();
+    await expect(page.locator('a:has-text("Issuer Portal")').first()).toBeVisible();
 
     // Verify key architecture highlights on landing page
-    await expect(page.locator('text=W3C Verifiable Credentials')).toBeVisible();
-    await expect(page.locator('text=Zero-Knowledge Proofs')).toBeVisible();
-    await expect(page.locator('text=Polygon Amoy Testnet')).toBeVisible();
+    await expect(page.locator('text=Groth16 Zero-Knowledge').first()).toBeVisible();
+    await expect(page.locator('text=BabyJubjub EdDSA').first()).toBeVisible();
+    await expect(page.locator('text=Poseidon Commitments').first()).toBeVisible();
   });
 
-  test('Demonstration Scenario 1: Institution Dashboard & Credential Issuance UI', async ({ page }) => {
-    await page.goto('/institution/dashboard');
+  test('Demonstration Scenario 1: Institution Overview & Credential Issuance UI', async ({ page }) => {
+    await page.goto('/institution/overview');
 
-    // Check dashboard shell
-    await expect(page.locator('text=Institution Dashboard')).toBeVisible();
-    await expect(page.locator('text=Single Credential Issuance')).toBeVisible();
-    await expect(page.locator('text=CSV Bulk Issuance')).toBeVisible();
+    // Check institution overview shell
+    await expect(page.locator('text=RCC Institute of Information Technology').first()).toBeVisible();
+    await expect(page.locator('text=Accredited Issuer').first()).toBeVisible();
 
     // Navigate to single issuance form
-    await page.click('text=Single Credential Issuance');
-    await expect(page.locator('text=Issue Academic Credential')).toBeVisible();
+    await page.goto('/institution/issue');
+    await expect(page.locator('text=Issue Academic Credentials').first()).toBeVisible();
 
-    // Verify form input elements exist for academic claims
-    await expect(page.locator('input[name="degreeName"]')).toBeVisible();
-    await expect(page.locator('input[name="department"]')).toBeVisible();
-    await expect(page.locator('input[name="cgpa"]')).toBeVisible();
-    await expect(page.locator('input[name="graduationYear"]')).toBeVisible();
+    // Verify issuance action button exists
+    await expect(page.locator('button:has-text("Sign & Issue Verifiable Credential")')).toBeVisible();
   });
 
-  test('Demonstration Scenario 2: Student Sovereign Wallet & QR Presentation UI', async ({ page }) => {
+  test('Demonstration Scenario 2: Student Sovereign Wallet & Cryptographic Credentials UI', async ({ page }) => {
     await page.goto('/student/wallet');
 
-    // Check wallet header
-    await expect(page.locator('text=Sovereign Credential Wallet')).toBeVisible();
-    await expect(page.locator('text=Aarav Sen')).toBeVisible();
+    // Check wallet header and student details
+    await expect(page.locator('text=Credential Wallet').first()).toBeVisible();
+    await expect(page.locator('text=Aarav Sen').first()).toBeVisible();
 
     // Verify academic credential card is rendered
-    await expect(page.locator('text=Bachelor of Technology')).toBeVisible();
-    await expect(page.locator('text=Computer Science and Engineering')).toBeVisible();
+    await expect(page.locator('text=B.Tech Computer Science').first()).toBeVisible();
+    await expect(page.locator('text=8.72 / 10.00').first()).toBeVisible();
 
-    // Verify presentation action buttons
-    await expect(page.locator('button:has-text("Share QR Presentation")')).toBeVisible();
-    await expect(page.locator('button:has-text("Generate ZK Proof")')).toBeVisible();
-
-    // Open QR presentation modal
-    await page.click('button:has-text("Share QR Presentation")');
-    await expect(page.locator('text=Ephemeral Presentation QR')).toBeVisible();
-    await expect(page.locator('text=15 Minutes')).toBeVisible();
+    // Verify cryptographic badges / footprint
+    await expect(page.locator('text=Poseidon Commitment').first()).toBeVisible();
+    await expect(page.locator('text=BabyJubjub EdDSA Signature').first()).toBeVisible();
   });
 
-  test('Demonstration Scenario 3: Privacy-Preserving ZK Proof Generator Modal UI', async ({ page }) => {
+  test('Demonstration Scenario 3: In-Browser Privacy-Preserving Groth16 ZK Proof Generation', async ({ page }) => {
+    test.setTimeout(60000);
     await page.goto('/student/wallet');
 
-    // Open ZK proof modal
-    await page.click('button:has-text("Generate ZK Proof")');
-    await expect(page.locator('text=Generate Zero-Knowledge Eligibility Proof')).toBeVisible();
+    // Locate ZK proof generator section
+    await expect(page.locator('text=Generate ZK Proof').first()).toBeVisible();
+    await expect(page.locator('text=Minimum Cutoff Threshold').first()).toBeVisible();
 
-    // Verify threshold slider/input exists (e.g. 8.00)
-    await expect(page.locator('text=Minimum CGPA Requirement')).toBeVisible();
-    await expect(page.locator('input[type="range"], input[type="number"]')).toBeVisible();
+    // Generate ZK proof in-browser via WebAssembly witness generator
+    const generateBtn = page.locator('button:has-text("Generate Mathematical Proof")');
+    await expect(generateBtn).toBeVisible();
+    await generateBtn.click();
 
-    // Verify cryptographic privacy assurance statement
-    await expect(
-      page.locator('text=Your exact CGPA will remain hidden. Only mathematical proof that CGPA >= threshold is generated.')
-    ).toBeVisible();
+    // Wait for proof generation to complete
+    await expect(page.locator('text=Zero-Knowledge Proof Ready')).toBeVisible({ timeout: 45000 });
   });
 
-  test('Demonstration Scenario 4: Public Verification Console Multi-Tab UI', async ({ page }) => {
+  test('Demonstration Scenario 4: Public Verification Console & Groth16 Pairing Verification', async ({ page }) => {
     await page.goto('/verify');
 
     // Check verification portal header
-    await expect(page.locator('text=Public Credential Verification Portal')).toBeVisible();
+    await expect(page.locator('text=Verify Academic Credentials & ZK Proofs').first()).toBeVisible();
 
-    // Verify the three distinct verification tabs
-    await expect(page.locator('button:has-text("Standard QR Presentation")')).toBeVisible();
-    await expect(page.locator('button:has-text("Offline JSON File")')).toBeVisible();
-    await expect(page.locator('button:has-text("Zero-Knowledge Proof")')).toBeVisible();
+    // Switch to ZK-SNARK Proof Verification tab
+    const zkTab = page.locator('button:has-text("ZK-SNARK Proof Verification")');
+    await expect(zkTab).toBeVisible();
+    await zkTab.click();
 
-    // Switch to Zero-Knowledge tab
-    await page.click('button:has-text("Zero-Knowledge Proof")');
-    await expect(page.locator('text=Groth16 Zero-Knowledge Verification')).toBeVisible();
-    await expect(page.locator('textarea[placeholder*="zkProof"], textarea[placeholder*="proof"]')).toBeVisible();
+    await expect(page.locator('text=Groth16 Zero-Knowledge Verification').first()).toBeVisible();
+
+    // Click Load Sample Proof if present
+    const loadSampleBtn = page.locator('button:has-text("Load Sample")');
+    if (await loadSampleBtn.isVisible()) {
+      await loadSampleBtn.click();
+    }
+
+    // Click Verify ZK-SNARK Proof
+    const verifyBtn = page.locator('button:has-text("Verify ZK-SNARK Proof")');
+    await expect(verifyBtn).toBeVisible();
+    await verifyBtn.click();
+
+    // Verification result should display
+    await expect(page.locator('text=Cryptographically Authentic')).toBeVisible({ timeout: 10000 });
   });
 
-  test('Demonstration Scenario 5: Revocation Status & Security Audit Visibility', async ({ page }) => {
+  test('Demonstration Scenario 5: Tampering Defense on Public Verification Portal', async ({ page }) => {
     await page.goto('/verify');
 
-    // Check on-chain integrity assurances
-    await expect(page.locator('text=Revocation Registry')).toBeVisible();
-    await expect(page.locator('text=Cryptographic Security Check')).toBeVisible();
+    // Switch to ZK-SNARK Proof Verification tab
+    await page.click('button:has-text("ZK-SNARK Proof Verification")');
+
+    // Set a tampered payload with invalid proof points
+    const textarea = page.locator('textarea');
+    await textarea.fill(JSON.stringify({
+      publicSignals: ["12345", "900", "67890", "11111"],
+      proof: {
+        pi_a: ["1", "2", "1"],
+        pi_b: [["1", "2"], ["3", "4"], ["1", "0"]],
+        pi_c: ["5", "6", "1"],
+        protocol: "groth16"
+      }
+    }));
+
+    // Click Verify ZK-SNARK Proof
+    await page.click('button:has-text("Verify ZK-SNARK Proof")');
+
+    // Verify cryptographic rejection is shown
+    await expect(page.locator('text=Groth16 mathematical pairing verification failed: Invalid or tampered proof')).toBeVisible({ timeout: 10000 });
+  });
+
+  test('Demonstration Scenario 6: Platform Administrator Governance Portal', async ({ page }) => {
+    await page.goto('/admin/overview');
+
+    // Check Admin Overview metrics
+    await expect(page.locator('text=Approved Institutions').first()).toBeVisible();
+    await expect(page.locator('text=Pending Approvals').first()).toBeVisible();
+
+    // Check Institutions Governance
+    await page.goto('/admin/institutions');
+    await expect(page.locator('text=Institution Registry').first()).toBeVisible();
+    await expect(page.locator('text=Jadavpur University').first()).toBeVisible();
   });
 });
