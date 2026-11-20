@@ -56,10 +56,16 @@ async function main() {
 
   // 4. Institution EdDSA Keypair
   const keyPair = await generateIssuerKeyPair();
-  await prisma.institutionKey.create({
-    data: {
+  const keyIdentifier = `did:vericred:institution:${DEMO_INSTITUTION.SHORT_CODE.toLowerCase()}#key-1`;
+  await prisma.institutionKey.upsert({
+    where: { keyIdentifier },
+    update: {
+      publicKeyX: keyPair.publicKey.x,
+      publicKeyY: keyPair.publicKey.y,
+    },
+    create: {
       institutionId: institution.id,
-      keyIdentifier: `did:vericred:institution:${DEMO_INSTITUTION.SHORT_CODE.toLowerCase()}#key-1`,
+      keyIdentifier,
       keyType: KeyType.BABYJUBJUB_EDDSA,
       publicKeyX: keyPair.publicKey.x,
       publicKeyY: keyPair.publicKey.y,
@@ -133,29 +139,35 @@ async function main() {
       },
     });
 
-    // Issue Academic Credential
-    const scaledCgpa = scaleCgpa(s.cgpa);
-    const salt = generateBlindingSalt();
-    const commitment = await computeAcademicCommitment(scaledCgpa, salt);
-    const { signature } = await signCommitment(keyPair.privateKey, commitment);
-
-    await prisma.credential.create({
-      data: {
-        credentialId: `urn:uuid:${crypto.randomUUID()}`,
-        institutionId: institution.id,
-        studentId: student.id,
-        degreeName: s.degree,
-        department: s.department,
-        graduationYear: s.graduationYear,
-        cgpaRaw: s.cgpa,
-        cgpaScaled: scaledCgpa,
-        blindingSalt: salt.toString(),
-        commitment: commitment.toString(),
-        signature: JSON.stringify(signature),
-        status: CredentialStatus.ACTIVE,
-        onChainTxHash: '0x3a4f9182bcde7102938475610293847561029384756102938475610293847561',
-      },
+    // Issue Academic Credential if not already present
+    const existingCred = await prisma.credential.findFirst({
+      where: { studentId: student.id, status: CredentialStatus.ACTIVE },
     });
+
+    if (!existingCred) {
+      const scaledCgpa = scaleCgpa(s.cgpa);
+      const salt = generateBlindingSalt();
+      const commitment = await computeAcademicCommitment(scaledCgpa, salt);
+      const { signature } = await signCommitment(keyPair.privateKey, commitment);
+
+      await prisma.credential.create({
+        data: {
+          credentialId: `urn:uuid:${crypto.randomUUID()}`,
+          institutionId: institution.id,
+          studentId: student.id,
+          degreeName: s.degree,
+          department: s.department,
+          graduationYear: s.graduationYear,
+          cgpaRaw: s.cgpa,
+          cgpaScaled: scaledCgpa,
+          blindingSalt: salt.toString(),
+          commitment: commitment.toString(),
+          signature: JSON.stringify(signature),
+          status: CredentialStatus.ACTIVE,
+          onChainTxHash: '0x3a4f9182bcde7102938475610293847561029384756102938475610293847561',
+        },
+      });
+    }
   }
 
   console.log('Seeding completed successfully!');

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build:packages": "pnpm --filter \"./packages/*\" build",
+    "build:packages": "pnpm --filter \"@vericred/shared\" --filter \"@vericred/crypto\" --filter \"@vericred/credential-schema\" build",
     "build": "turbo run build",
     "dev": "pnpm build:packages && turbo run dev --parallel",
     "test": "turbo run test",
