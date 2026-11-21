@@ -24,9 +24,11 @@ COPY . .
 RUN pnpm --filter @vericred/shared build
 RUN pnpm --filter @vericred/crypto build
 RUN pnpm --filter @vericred/credential-schema build
+RUN pnpm --filter @vericred/contract-client build
 
 # Build Next.js Web App
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_OUTPUT_STANDALONE=1
 RUN pnpm --filter @vericred/web build
 
 # Stage 3: Lean Production Runner

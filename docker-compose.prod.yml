@@ -9,8 +9,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-vericred_admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vericred_secure_password_2026}
       POSTGRES_DB: ${POSTGRES_DB:-vericred_production}
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_prod_data:/var/lib/postgresql/data
     healthcheck:
@@ -26,8 +24,6 @@ services:
     container_name: vericred-redis-prod
     restart: unless-stopped
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-vericred_redis_pass_2026}
-    ports:
-      - "6379:6379"
     volumes:
       - redis_prod_data:/data
     healthcheck:
@@ -55,15 +51,15 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-vericred_admin}:${POSTGRES_PASSWORD:-vericred_secure_password_2026}@postgres:5432/${POSTGRES_DB:-vericred_production}?schema=public
       REDIS_URL: redis://:${REDIS_PASSWORD:-vericred_redis_pass_2026}@redis:6379
       JWT_SECRET: ${JWT_SECRET:-vericred_super_secret_jwt_key_production_2026_at_least_32_chars}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
       ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY:-vericred_master_encryption_secret_production_2026_at_least_32_chars}
       POLYGON_AMOY_RPC_URL: ${POLYGON_AMOY_RPC_URL:-https://polygon-amoy-bor-rpc.publicnode.com}
       RELAYER_PRIVATE_KEY: ${RELAYER_PRIVATE_KEY:-}
       INSTITUTION_REGISTRY_ADDRESS: ${INSTITUTION_REGISTRY_ADDRESS:-0xF250601Ca003f6F97ae6a5b24eFFD99FC2D95266}
       CREDENTIAL_REGISTRY_ADDRESS: ${CREDENTIAL_REGISTRY_ADDRESS:-0x35E7F512031B4F46c02e76bb1445E2DC38C7AB22}
       REVOCATION_REGISTRY_ADDRESS: ${REVOCATION_REGISTRY_ADDRESS:-0xaacEAe5171E339763C3Cb68C5d2841816058DF78}
-    ports:
-      - "4000:4000"
+    expose:
+      - "4000"
     networks:
       - vericred-internal
       - vericred-public
@@ -79,15 +75,32 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost}
       NEXT_PUBLIC_CHAIN_ID: "80002"
       NEXT_PUBLIC_CHAIN_NAME: "Polygon Amoy Testnet"
       NEXT_PUBLIC_RPC_URL: ${NEXT_PUBLIC_RPC_URL:-https://polygon-amoy-bor-rpc.publicnode.com}
       NEXT_PUBLIC_INSTITUTION_REGISTRY_ADDRESS: ${INSTITUTION_REGISTRY_ADDRESS:-0xF250601Ca003f6F97ae6a5b24eFFD99FC2D95266}
       NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS: ${CREDENTIAL_REGISTRY_ADDRESS:-0x35E7F512031B4F46c02e76bb1445E2DC38C7AB22}
       NEXT_PUBLIC_REVOCATION_REGISTRY_ADDRESS: ${REVOCATION_REGISTRY_ADDRESS:-0xaacEAe5171E339763C3Cb68C5d2841816058DF78}
+    expose:
+      - "3000"
+    networks:
+      - vericred-public
+
+  gateway:
+    image: caddy:2-alpine
+    container_name: vericred-gateway-prod
+    restart: unless-stopped
+    depends_on:
+      - api
+      - web
     ports:
-      - "3000:3000"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
     networks:
       - vericred-public
 
@@ -100,3 +113,5 @@ networks:
 volumes:
   postgres_prod_data:
   redis_prod_data:
+  caddy_data:
+  caddy_config:

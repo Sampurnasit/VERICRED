@@ -206,11 +206,14 @@
   - [x] Connect `runStandardVerification` in `apps/web/app/verify/page.tsx` to `api.verification.verifyPresentation`.
   - [x] Connect `runZkVerification` in `apps/web/app/verify/page.tsx` to `api.verification.verifyZkProof` with in-browser snarkjs fallback.
   - [x] Align `apps/web/app/admin/overview/page.tsx` to read deployed Polygon Amoy contract addresses.
-- [x] **Production Containerization & Health Probing**
+- [x] **Production Containerization, Reverse Proxy & Health Probing**
   - [x] Configure `output: 'standalone'` in `apps/web/next.config.mjs` for optimized Docker runner images.
+  - [x] Author Caddy reverse proxy configuration (`caddy/Caddyfile`) routing `/api/*` and `/health/*` to `api:4000` and all other traffic to `web:3000`.
+  - [x] Harden `docker-compose.prod.yml`: remove obsolete `version: '3.8'` tag, isolate database and Redis internal networks, map Polygon Amoy contract addresses, and add Caddy gateway service.
+  - [x] Update `apps/api/Dockerfile` and `apps/web/Dockerfile` to build `@vericred/contract-client`.
+  - [x] Add `db:deploy` (`prisma migrate deploy`) command to `apps/api/package.json`.
   - [x] Upgrade `apps/api/src/index.ts` with real database health checks (`prisma.$queryRaw`), request correlation IDs (`X-Request-Id`), and graceful `SIGTERM`/`SIGINT` shutdown handlers.
-  - [x] Remove obsolete `version: '3.8'` tag from `docker-compose.prod.yml` and synchronize Polygon Amoy environment defaults.
-- [x] **Full Regression Verification**
+- [x] **Full Regression Verification & Production Readiness**
   - [x] Verified 15/15 tests in `packages/crypto`.
   - [x] Verified 42/42 tests in `apps/api`.
   - [x] Verified 20/20 tests in `blockchain`.

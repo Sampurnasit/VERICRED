@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  output: 'standalone',
+  output: process.env.NEXT_OUTPUT_STANDALONE === '1' ? 'standalone' : undefined,
   transpilePackages: ['@vericred/shared', '@vericred/crypto', '@vericred/credential-schema'],
   webpack: (config, { isServer }) => {
     if (!isServer) {

@@ -1,0 +1,26 @@
+{
+    # Global options - HTTP entry (or set domain name for automated Let's Encrypt TLS)
+    auto_https off
+}
+
+:80 {
+    # Route API endpoints and health checks to the Express backend
+    handle /api/* {
+        reverse_proxy api:4000
+    }
+
+    handle /health/* {
+        reverse_proxy api:4000
+    }
+
+    # Route all other frontend requests to Next.js
+    handle {
+        reverse_proxy web:3000
+    }
+
+    # Structured JSON access logging
+    log {
+        output stdout
+        format json
+    }
+}

@@ -29,6 +29,7 @@ RUN pnpm --filter @vericred/api db:generate
 RUN pnpm --filter @vericred/shared build
 RUN pnpm --filter @vericred/crypto build
 RUN pnpm --filter @vericred/credential-schema build
+RUN pnpm --filter @vericred/contract-client build
 RUN pnpm --filter @vericred/api build
 
 # Stage 3: Production Runner
