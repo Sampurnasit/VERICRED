@@ -22,6 +22,15 @@ export class InstitutionController {
       next(err);
     }
   }
+
+  async getStudents(req: Request, res: Response, next: NextFunction) {
+    try {
+      const students = await institutionService.getStudents(req.user!.userId);
+      sendSuccess(res, { students });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export const institutionController = new InstitutionController();

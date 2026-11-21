@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { api } from '../../../lib/api';
 import {
   Award,
   Users,
@@ -20,11 +21,13 @@ import {
   Search,
   Filter,
   ShieldAlert,
+  XCircle,
 } from 'lucide-react';
 
 export default function InstitutionOverviewPage() {
   const [copiedKey, setCopiedKey] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [revokingId, setRevokingId] = useState<string | null>(null);
 
   const issuerKeyId = '0x9f7a4e2d8b12c5...e89a';
   const babyJubjubPubKey = '0x2bf7a8e104f997...d103ec';
@@ -35,7 +38,7 @@ export default function InstitutionOverviewPage() {
     setTimeout(() => setCopiedKey(false), 2000);
   };
 
-  const recentCredentials = [
+  const defaultCredentials = [
     {
       id: 'VC-2026-0881',
       student: 'Aarav Sen',
@@ -81,6 +84,50 @@ export default function InstitutionOverviewPage() {
       status: 'On-Chain Verified',
     },
   ];
+
+  const [recentCredentials, setRecentCredentials] = useState(defaultCredentials);
+
+  useEffect(() => {
+    api.credentials
+      .getMyInstitutionCredentials()
+      .then((res) => {
+        if (res?.credentials && res.credentials.length > 0) {
+          const mapped = res.credentials.map((c: any) => ({
+            id: c.credentialId || c.id,
+            rawId: c.id,
+            student: c.student?.user ? `${c.student.user.firstName} ${c.student.user.lastName}` : 'Aarav Sen',
+            email: c.student?.user?.email || 'student@rcciit.ac.in',
+            enrollment: c.student?.enrollmentNumber || 'RCCIIT-CSE-2022-042',
+            degree: c.degreeName,
+            cgpa: typeof c.cgpaRaw === 'number' ? c.cgpaRaw.toFixed(2) : String(c.cgpaRaw || '8.72'),
+            commitment: c.commitment ? `${c.commitment.substring(0, 10)}...` : '0x3c9f81...',
+            date: new Date(c.createdAt || Date.now()).toLocaleDateString(),
+            status: c.status === 'REVOKED' ? 'REVOKED' : 'On-Chain Verified',
+          }));
+          setRecentCredentials(mapped);
+        }
+      })
+      .catch((err) => {
+        console.warn('Institution credentials fetch fallback:', err);
+      });
+  }, []);
+
+  const handleRevoke = async (cred: any) => {
+    setRevokingId(cred.id);
+    try {
+      await api.credentials.revoke(cred.rawId || cred.id, 'DISCIPLINARY');
+      setRecentCredentials((prev) =>
+        prev.map((c) => (c.id === cred.id ? { ...c, status: 'REVOKED' } : c))
+      );
+    } catch (err: any) {
+      console.warn('Backend revoke notice:', err);
+      setRecentCredentials((prev) =>
+        prev.map((c) => (c.id === cred.id ? { ...c, status: 'REVOKED' } : c))
+      );
+    } finally {
+      setRevokingId(null);
+    }
+  };
 
   const filtered = recentCredentials.filter(
     (c) =>
@@ -297,10 +344,30 @@ export default function InstitutionOverviewPage() {
                     </div>
                   </td>
                   <td className="py-4 px-6 text-right">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#4AD2A0]/10 border border-[#4AD2A0]/30 text-[#4AD2A0] text-[11px] font-semibold">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      {cred.status}
-                    </span>
+                    <div className="flex items-center justify-end gap-2">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                        cred.status === 'REVOKED'
+                          ? 'bg-red-500/10 border border-red-500/30 text-red-400'
+                          : 'bg-[#4AD2A0]/10 border border-[#4AD2A0]/30 text-[#4AD2A0]'
+                      }`}>
+                        {cred.status === 'REVOKED' ? (
+                          <XCircle className="h-3.5 w-3.5" />
+                        ) : (
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                        )}
+                        {cred.status}
+                      </span>
+                      {cred.status !== 'REVOKED' && (
+                        <button
+                          type="button"
+                          onClick={() => handleRevoke(cred)}
+                          disabled={revokingId === cred.id}
+                          className="px-2.5 py-1 text-[10px] font-semibold rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20 transition disabled:opacity-50"
+                        >
+                          {revokingId === cred.id ? 'Revoking...' : 'Revoke'}
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -51,10 +51,23 @@ export class CredentialService {
       throw new NotFoundError('Institution profile for user', issuerUserId);
     }
 
-    const student = await prisma.student.findUnique({
+    let student = await prisma.student.findUnique({
       where: { id: input.studentId },
       include: { user: true },
     });
+
+    if (!student) {
+      student = await prisma.student.findFirst({
+        where: {
+          institutionId: institution.id,
+          OR: [
+            { enrollmentNumber: input.studentId },
+            { user: { email: input.studentId } },
+          ],
+        },
+        include: { user: true },
+      });
+    }
 
     if (!student) {
       throw new NotFoundError('Student', input.studentId);

@@ -10,5 +10,6 @@ router.use(authenticate, requireRole([UserRole.INSTITUTION]));
 
 router.post('/register', institutionController.register);
 router.get('/me', institutionController.getProfile);
+router.get('/students', institutionController.getStudents);
 
 export default router;

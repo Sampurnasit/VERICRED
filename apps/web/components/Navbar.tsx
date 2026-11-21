@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '../context/AuthContext';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -14,10 +15,12 @@ import {
   X,
   ChevronRight,
   Layers,
+  LogOut,
 } from 'lucide-react';
 
 export function Navbar() {
   const pathname = usePathname();
+  const { user, isAuthenticated, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isDashboard = pathname.startsWith('/student') || pathname.startsWith('/institution') || pathname.startsWith('/admin');
@@ -87,13 +90,33 @@ export function Navbar() {
             <span className="font-mono text-[11px] font-medium text-slate-300">Polygon Amoy</span>
           </div>
 
-          {isDashboard ? (
+          {isAuthenticated && user ? (
+            <div className="flex items-center gap-2">
+              <div className="hidden sm:flex flex-col text-right">
+                <span className="text-xs font-bold text-white leading-tight">
+                  {user.firstName} {user.lastName}
+                </span>
+                <span className="text-[10px] font-mono text-cyan-400">
+                  {user.role}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => logout()}
+                className="flex items-center gap-1.5 rounded-xl border border-white/[0.1] bg-slate-800/80 px-3 py-2 text-xs font-semibold text-slate-300 hover:text-white hover:border-red-500/40 hover:bg-red-500/10 transition shadow-sm"
+                title="Sign Out"
+              >
+                <LogOut className="h-3.5 w-3.5 text-slate-400 hover:text-red-400" />
+                <span className="hidden sm:inline">Sign Out</span>
+              </button>
+            </div>
+          ) : isDashboard ? (
             <Link
               href="/login"
               className="flex items-center gap-1.5 rounded-xl border border-white/[0.1] bg-slate-800/80 px-3.5 py-2 text-xs font-semibold text-slate-200 hover:border-blue-500/50 hover:bg-slate-800 hover:text-white transition shadow-sm"
             >
               <UserCircle className="h-4 w-4 text-cyan-400" />
-              <span className="hidden sm:inline">Switch Persona</span>
+              <span className="hidden sm:inline">Sign In / Switch</span>
             </Link>
           ) : (
             <div className="flex items-center gap-2">

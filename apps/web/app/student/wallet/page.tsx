@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { api } from '../../../lib/api';
 import {
   Award,
   Lock,
@@ -51,8 +52,26 @@ export default function StudentWalletPage() {
   const [timeLeft, setTimeLeft] = useState(900); // 15 minutes
 
   // Default student academic record (Aarav Sen, RCCIIT CSE 2026)
-  const studentCgpa = 8.72;
-  const scaledCgpa = scaleCgpa(studentCgpa); // 872
+  const [studentCgpa, setStudentCgpa] = useState<number>(8.72);
+  const [scaledCgpa, setScaledCgpa] = useState<number>(scaleCgpa(8.72)); // 872
+  const [loadedCredential, setLoadedCredential] = useState<any>(null);
+
+  useEffect(() => {
+    api.credentials
+      .getMyStudentCredentials()
+      .then((res) => {
+        if (res?.credentials && res.credentials.length > 0) {
+          const cred = res.credentials[0];
+          setLoadedCredential(cred);
+          const rawScore = typeof cred.cgpaRaw === 'number' ? cred.cgpaRaw : parseFloat(String(cred.cgpaRaw || '8.72'));
+          setStudentCgpa(rawScore);
+          setScaledCgpa(cred.cgpaScaled || scaleCgpa(rawScore));
+        }
+      })
+      .catch((err) => {
+        console.warn('Student credentials fetch notice:', err);
+      });
+  }, []);
 
   const handleGenerateProof = async () => {
     setIsGenerating(true);

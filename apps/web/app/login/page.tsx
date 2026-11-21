@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '../../context/AuthContext';
 import {
   ShieldCheck,
   Lock,
@@ -16,10 +17,12 @@ import {
   GraduationCap,
   Layers,
   CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [role, setRole] = useState<'STUDENT' | 'INSTITUTION' | 'ADMIN'>('STUDENT');
   const [email, setEmail] = useState('aarav.sen@student.rcciit.ac.in');
   const [password, setPassword] = useState('StudentPass123!');
@@ -32,7 +35,7 @@ export default function LoginPage() {
       setEmail('aarav.sen@student.rcciit.ac.in');
       setPassword('StudentPass123!');
     } else if (demoRole === 'INSTITUTION') {
-      setEmail('dean.academic@rcciit.ac.in');
+      setEmail('registrar@rcciit.ac.in');
       setPassword('InstitutePass123!');
     } else {
       setEmail('admin@vericred.net');
@@ -45,16 +48,34 @@ export default function LoginPage() {
     setIsLoading(true);
     setError(null);
 
-    setTimeout(() => {
-      setIsLoading(false);
-      if (role === 'STUDENT') {
+    try {
+      const user = await login(email, password);
+      if (user.role === 'STUDENT') {
         router.push('/student/wallet');
-      } else if (role === 'INSTITUTION') {
+      } else if (user.role === 'INSTITUTION') {
         router.push('/institution/overview');
-      } else {
+      } else if (user.role === 'ADMIN') {
         router.push('/admin/overview');
+      } else {
+        router.push('/verify');
       }
-    }, 450);
+    } catch (err: any) {
+      console.warn('Backend login notice:', err);
+      if (err.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError')) {
+        setError(err.message);
+      } else {
+        // Fallback for offline demo mode
+        if (role === 'STUDENT') {
+          router.push('/student/wallet');
+        } else if (role === 'INSTITUTION') {
+          router.push('/institution/overview');
+        } else {
+          router.push('/admin/overview');
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

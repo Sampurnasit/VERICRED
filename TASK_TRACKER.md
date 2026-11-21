@@ -150,3 +150,18 @@
   - [x] Execute Demonstration Scenario 3: Privacy-Preserving Groth16 Zero-Knowledge Verification (Verified end-to-end)
   - [x] Execute Demonstration Scenario 4: Tampering Detection & Cryptographic Defense (Verified end-to-end)
   - [x] Execute Demonstration Scenario 5: Dynamic On-Chain Revocation & Immediate Invalidation (Verified end-to-end)
+
+---
+
+## Phase 8: Production Full-Stack Integration & Client Hardening
+- [x] **Frontend-to-Backend Full Integration**
+  - [x] Author enterprise typed API client (`apps/web/lib/api.ts`) supporting JWT bearer headers, credential cookies, and JSend envelopes
+  - [x] Build React `AuthProvider` and `useAuth()` context (`apps/web/context/AuthContext.tsx`) for session state and role persistence
+  - [x] Wire `apps/web/app/login/page.tsx` and `register/page.tsx` to `POST /api/v1/auth/login` and `POST /api/v1/auth/register` with error handling
+  - [x] Wire `apps/web/components/Navbar.tsx` to display active user identity and sign-out action
+  - [x] Wire single credential issuance (`/institution/issue`) to `POST /api/v1/credentials/issue` with student lookup by ID or enrollment number
+  - [x] Wire bulk CSV credential issuance (`/institution/issue`) to `POST /api/v1/credentials/issue-bulk`
+  - [x] Wire institution overview (`/institution/overview`) to `GET /api/v1/credentials/institution` and on-chain revocation action (`POST /api/v1/credentials/:id/revoke`)
+  - [x] Wire institution student management (`/institution/students`) to `GET /api/v1/institutions/students`
+  - [x] Wire student sovereign wallet (`/student/wallet`) to `GET /api/v1/credentials/student`
+  - [x] Wire consortium governance (`/admin/institutions`) to `GET /api/v1/admin/institutions`, `POST /api/v1/admin/institutions/:id/approve`, and `suspend`

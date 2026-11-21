@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { api } from '../../../lib/api';
 import {
   Search,
   Plus,
@@ -73,6 +74,27 @@ export default function InstitutionStudentsPage() {
       status: 'Pending Issuance',
     },
   ]);
+
+  useEffect(() => {
+    api.institutions
+      .getStudents()
+      .then((res) => {
+        if (res?.students && res.students.length > 0) {
+          const mapped = res.students.map((s: any) => ({
+            name: `${s.user.firstName} ${s.user.lastName}`,
+            enrollment: s.enrollmentNumber,
+            department: s.department,
+            batch: `${s.batchYear || 2022}-${(s.batchYear || 2022) + 4}`,
+            cgpa: s.credentials?.[0]?.cgpaRaw ? Number(s.credentials[0].cgpaRaw).toFixed(2) : '8.50',
+            status: s.credentials && s.credentials.length > 0 ? 'Credential Issued' : 'Pending Issuance',
+          }));
+          setStudents(mapped);
+        }
+      })
+      .catch((err) => {
+        console.warn('Institution students fetch fallback:', err);
+      });
+  }, []);
 
   const handleEnroll = (e: React.FormEvent) => {
     e.preventDefault();

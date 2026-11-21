@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '../../context/AuthContext';
 import {
   ShieldCheck,
   UserPlus,
@@ -15,10 +16,12 @@ import {
   KeyRound,
   Eye,
   EyeOff,
+  AlertCircle,
 } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { register } = useAuth();
   const [role, setRole] = useState<'STUDENT' | 'INSTITUTION'>('STUDENT');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -27,14 +30,42 @@ export default function RegisterPage() {
   const [orgName, setOrgName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    setError(null);
+
+    try {
+      await register({
+        email,
+        password,
+        role,
+        firstName,
+        lastName,
+        ...(role === 'INSTITUTION'
+          ? {
+              institutionName: orgName || `${firstName}'s University`,
+              shortCode: (orgName || firstName).substring(0, 8).toUpperCase(),
+              website: `https://${(orgName || firstName).toLowerCase().replace(/[^a-z0-9]/g, '')}.edu`,
+              blockchainAddress: `0x${Array.from({ length: 40 }, () =>
+                Math.floor(Math.random() * 16).toString(16)
+              ).join('')}`,
+            }
+          : {}),
+      });
       router.push('/login');
-    }, 600);
+    } catch (err: any) {
+      console.warn('Backend register notice:', err);
+      if (err.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError')) {
+        setError(err.message);
+      } else {
+        router.push('/login');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -87,6 +118,12 @@ export default function RegisterPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+            {error && (
+              <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+                <span>{error}</span>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold uppercase tracking-wider text-slate-300 mb-1.5">

@@ -50,6 +50,41 @@ export class InstitutionService {
 
     return institution;
   }
+
+  async getStudents(userId: string) {
+    const institution = await prisma.institution.findUnique({
+      where: { userId },
+    });
+
+    if (!institution) {
+      throw new NotFoundError('Institution profile for user', userId);
+    }
+
+    const students = await prisma.student.findMany({
+      where: { institutionId: institution.id },
+      include: {
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        credentials: {
+          select: {
+            id: true,
+            status: true,
+            degreeName: true,
+            cgpaRaw: true,
+            issuedAt: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return students;
+  }
 }
 
 export const institutionService = new InstitutionService();
