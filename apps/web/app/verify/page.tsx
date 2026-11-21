@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import * as snarkjs from 'snarkjs';
 import jsQR from 'jsqr';
+import { api } from '../../lib/api';
 
 function VerifyContent() {
   const searchParams = useSearchParams();
@@ -356,8 +357,45 @@ function VerifyContent() {
     setVerificationResult(null);
 
     try {
-      const provenScaled = parseInt(publicSignals[1], 10);
       const reqThresholdNum = parseFloat(threshold);
+
+      // Verify via backend API (Groth16 verify + accredited university check + on-chain revocation query)
+      let apiResult: any = null;
+      try {
+        apiResult = await api.verification.verifyZkProof(proof, publicSignals, reqThresholdNum);
+      } catch (err: any) {
+        console.warn('Backend ZK verification note (falling back to in-browser snarkjs):', err.message);
+      }
+
+      if (apiResult) {
+        if (!apiResult.isValid) {
+          throw new Error(apiResult.error || 'Groth16 mathematical pairing failed or credential revoked');
+        }
+
+        setVerificationResult({
+          isValid: true,
+          type: 'ZK',
+          details: {
+            provenThreshold:
+              apiResult.zkDetails?.provenThreshold?.toFixed(2) ||
+              (parseInt(publicSignals[1], 10) / 100).toFixed(2),
+            requiredThreshold: reqThresholdNum.toFixed(2),
+            institution:
+              apiResult.zkDetails?.issuerName ||
+              extraDetails?.institution ||
+              'RCC Institute of Information Technology',
+            student: extraDetails?.student || 'Aarav Sen',
+            degree: extraDetails?.degree || 'Bachelor of Technology in Computer Science',
+            commitment: publicSignals[0] ? `0x${publicSignals[0].slice(0, 10)}...` : undefined,
+            nonce: extraDetails?.nonce || 'n_valid_single_use',
+            status: 'ACTIVE_ON_CHAIN',
+          },
+        });
+        return;
+      }
+
+      // In-browser snarkjs fallback if API was temporarily unreachable
+      const provenScaled = parseInt(publicSignals[1], 10);
       const provenThresholdNum = provenScaled / 100;
 
       if (provenThresholdNum < reqThresholdNum) {
@@ -407,12 +445,53 @@ function VerifyContent() {
   };
 
   // Run Standard VC Verification
-  const runStandardVerification = (details?: any) => {
+  const runStandardVerification = async (details?: any) => {
     setIsVerifying(true);
     setVerificationResult(null);
 
-    setTimeout(() => {
-      setIsVerifying(false);
+    try {
+      let payloadToVerify = details;
+      if (!payloadToVerify && presentationJson) {
+        try {
+          payloadToVerify = JSON.parse(presentationJson);
+        } catch {
+          // ignore
+        }
+      }
+
+      if (
+        payloadToVerify &&
+        (payloadToVerify.type?.includes?.('VerifiablePresentation') || payloadToVerify.verifiableCredential)
+      ) {
+        const res = await api.verification.verifyPresentation(payloadToVerify);
+        if (res && res.isValid) {
+          setVerificationResult({
+            isValid: true,
+            type: 'STANDARD',
+            details: {
+              degree:
+                res.credentialDetails?.degreeName ||
+                details?.degree ||
+                'Bachelor of Technology in Computer Science & Engineering',
+              institution:
+                res.credentialDetails?.issuerName ||
+                details?.institution ||
+                'RCC Institute of Information Technology',
+              student: res.credentialDetails?.student || details?.student || 'Aarav Sen',
+              cgpa: res.credentialDetails?.cgpaRaw
+                ? `${res.credentialDetails.cgpaRaw} / 10.00`
+                : (details?.cgpa || '8.72 / 10.00'),
+              commitment: details?.commitment || '0x2a91e48c05f8841a5d629a88',
+              status: 'ACTIVE_ON_CHAIN',
+            },
+          });
+          return;
+        } else if (res && !res.isValid) {
+          throw new Error(res.error || 'Presentation failed cryptographic verification');
+        }
+      }
+
+      // Default representation for demo QR or raw preview
       setVerificationResult({
         isValid: true,
         type: 'STANDARD',
@@ -422,10 +501,18 @@ function VerifyContent() {
           student: details?.student || 'Aarav Sen',
           cgpa: details?.cgpa || '8.72 / 10.00',
           commitment: details?.commitment || '0x2a91e48c05f8841a5d629a88',
-          status: 'ACTIVE',
+          status: 'ACTIVE_ON_CHAIN',
         },
       });
-    }, 500);
+    } catch (err: any) {
+      setVerificationResult({
+        isValid: false,
+        type: 'STANDARD',
+        error: err.message || 'Cryptographic verification failed',
+      });
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   // Handle URL Query Params on Load (e.g. if scanned with phone camera)

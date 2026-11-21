@@ -17,7 +17,8 @@ import {
 } from 'lucide-react';
 
 export default function AdminOverviewPage() {
-  const polygonRegistryContract = '0x8A14f9d8c364e29783f982D12e09C4Fe7540D36B';
+  const polygonRegistryContract =
+    process.env.NEXT_PUBLIC_INSTITUTION_REGISTRY_ADDRESS || '0xF250601Ca003f6F97ae6a5b24eFFD99FC2D95266';
 
   return (
     <div className="space-y-8">

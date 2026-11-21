@@ -11,12 +11,14 @@ import {
   type IssueCredentialInput,
   type CsvCredentialRow,
 } from '@vericred/credential-schema';
-import { generateIssuerKeyPair } from '@vericred/crypto';
+import { generateIssuerKeyPair, encryptEnvelope, decryptEnvelope } from '@vericred/crypto';
 import { blockchainRelayer } from '../blockchain/blockchainRelayer.service.js';
+import { ENV } from '../../config/env.js';
 
 export class CredentialService {
   /**
    * Helper to retrieve or lazily generate an active BabyJubjub signing key for an institution.
+   * Institutional private keys are protected at rest using AES-256-GCM envelope encryption.
    */
   private async getActiveInstitutionKey(institutionId: string) {
     let key = await prisma.institutionKey.findFirst({
@@ -25,19 +27,26 @@ export class CredentialService {
 
     if (!key) {
       const generated = await generateIssuerKeyPair();
+      const encryptedKey = encryptEnvelope(generated.privateKey, ENV.ENCRYPTION_MASTER_KEY);
       key = await prisma.institutionKey.create({
         data: {
           institutionId,
           keyIdentifier: `did:vericred:institution:${institutionId}#key-1`,
           publicKeyX: generated.publicKey.x,
           publicKeyY: generated.publicKey.y,
-          kmsKeyArn: generated.privateKey, // Storing private key in kmsKeyArn field for local dev
+          kmsKeyArn: encryptedKey, // Stored encrypted at rest with AES-256-GCM
           isActive: true,
         },
       });
     }
 
-    return key;
+    // Decrypt in-memory for active cryptographic operations (supports both encrypted and legacy keys)
+    const decryptedPrivateKey = decryptEnvelope(key.kmsKeyArn, ENV.ENCRYPTION_MASTER_KEY);
+
+    return {
+      ...key,
+      kmsKeyArn: decryptedPrivateKey,
+    };
   }
 
   /**

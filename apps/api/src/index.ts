@@ -2,6 +2,8 @@ import express, { type Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import crypto from 'node:crypto';
+import { prisma } from './db/prisma.js';
 import { APP_CONSTANTS } from '@vericred/shared';
 import authRoutes from './modules/auth/auth.routes.js';
 import adminRoutes from './modules/admin/admin.routes.js';
@@ -61,18 +63,36 @@ export function createApp(): Express {
   app.use(cookieParser());
   app.use(express.json({ limit: '5mb' }));
 
+  // Request Correlation ID Middleware
+  app.use((req, res, next) => {
+    const requestId = (req.headers['x-request-id'] as string) || crypto.randomUUID();
+    res.setHeader('X-Request-Id', requestId);
+    (req as any).requestId = requestId;
+    next();
+  });
+
   // Health checks
   app.get('/health/live', (_req, res) => {
     res.json({ status: 'UP', timestamp: new Date().toISOString() });
   });
 
-  app.get('/health/ready', (_req, res) => {
-    res.json({
-      status: 'READY',
+  app.get('/health/ready', async (_req, res) => {
+    let dbStatus = 'DOWN';
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      dbStatus = 'UP';
+    } catch (e: any) {
+      console.warn('DB Health check failure:', e.message);
+    }
+
+    const isHealthy = dbStatus === 'UP';
+    res.status(isHealthy ? 200 : 503).json({
+      status: isHealthy ? 'READY' : 'DEGRADED',
       checks: {
-        database: 'UP',
+        database: dbStatus,
         redis: 'UP',
       },
+      timestamp: new Date().toISOString(),
     });
   });
 
@@ -107,9 +127,31 @@ const app = createApp();
 
 const PORT = process.env.PORT || 4000;
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`VERICRED API Server running on port ${PORT}`);
   });
+
+  const gracefulShutdown = async (signal: string) => {
+    console.log(`[API] Received ${signal}. Starting graceful shutdown...`);
+    server.close(async () => {
+      console.log('[API] HTTP server closed.');
+      try {
+        await prisma.$disconnect();
+        console.log('[API] Database connection closed.');
+      } catch (err: any) {
+        console.error('[API] Error closing database connection:', err.message);
+      }
+      process.exit(0);
+    });
+
+    setTimeout(() => {
+      console.error('[API] Forcefully terminating process after 10s timeout.');
+      process.exit(1);
+    }, 10000).unref();
+  };
+
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 }
 
 export default app;

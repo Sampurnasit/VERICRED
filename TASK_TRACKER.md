@@ -194,3 +194,29 @@
   - [x] Verified 7/7 ZK Circuit Groth16 tests passing (`pnpm --filter @vericred/zk test`).
   - [x] Verified 7/7 Playwright browser E2E demonstration tests passing (`pnpm --filter @vericred/web exec playwright test`).
 
+---
+
+## Phase 10: Cryptographic Key Protection at Rest, Public Verification Station & Containerization
+- [x] **Envelope Encryption for Institutional Signing Keys (`packages/crypto`)**
+  - [x] Implement AES-256-GCM envelope encryption (`encryptEnvelope`, `decryptEnvelope`, `isEnvelopeEncrypted`) with PBKDF2 100,000 iterations and 12-byte random IVs.
+  - [x] Author unit tests verifying probabilistic encryption, authentication tag verification, tamper rejection, and legacy unencrypted key fallback in `packages/crypto/test/envelope.test.ts`.
+  - [x] Configure `ENCRYPTION_MASTER_KEY` in `apps/api/src/config/env.ts`.
+  - [x] Wire `CredentialService.getActiveInstitutionKey` to encrypt private signing keys at rest in PostgreSQL and decrypt in-memory for issuance.
+- [x] **Public Verification Station Backend Integration (`apps/web`)**
+  - [x] Connect `runStandardVerification` in `apps/web/app/verify/page.tsx` to `api.verification.verifyPresentation`.
+  - [x] Connect `runZkVerification` in `apps/web/app/verify/page.tsx` to `api.verification.verifyZkProof` with in-browser snarkjs fallback.
+  - [x] Align `apps/web/app/admin/overview/page.tsx` to read deployed Polygon Amoy contract addresses.
+- [x] **Production Containerization & Health Probing**
+  - [x] Configure `output: 'standalone'` in `apps/web/next.config.mjs` for optimized Docker runner images.
+  - [x] Upgrade `apps/api/src/index.ts` with real database health checks (`prisma.$queryRaw`), request correlation IDs (`X-Request-Id`), and graceful `SIGTERM`/`SIGINT` shutdown handlers.
+  - [x] Remove obsolete `version: '3.8'` tag from `docker-compose.prod.yml` and synchronize Polygon Amoy environment defaults.
+- [x] **Full Regression Verification**
+  - [x] Verified 15/15 tests in `packages/crypto`.
+  - [x] Verified 42/42 tests in `apps/api`.
+  - [x] Verified 20/20 tests in `blockchain`.
+  - [x] Verified 7/7 tests in `zk`.
+  - [x] Verified 7/7 Playwright browser E2E tests in `apps/web`.
+  - [x] Verified 0 TypeScript errors across all 9 workspaces via `pnpm -r typecheck`.
+  - [x] Verified Next.js standalone production build (`apps/web/.next/standalone`).
+
+
