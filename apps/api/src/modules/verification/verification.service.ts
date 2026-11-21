@@ -16,6 +16,7 @@ import {
   type VerifiablePresentation2026,
   type VerifiableCredential2026,
 } from '@vericred/credential-schema';
+import { blockchainRelayer } from '../blockchain/blockchainRelayer.service.js';
 
 function findVerificationKeyPath(): string {
   const candidates = [
@@ -110,7 +111,7 @@ export class VerificationService {
       },
     });
 
-    // 4. Verify revocation status of commitment
+    // 4. Verify revocation status of commitment (both DB and on-chain)
     const dbCred = await prisma.credential.findFirst({
       where: {
         commitment: commitment,
@@ -134,6 +135,38 @@ export class VerificationService {
         isValid: false,
         result: VerificationResult.REVOKED,
         error: 'The underlying academic credential has been revoked by the issuing institution',
+      };
+    }
+
+    // Check on-chain revocation state on Polygon Amoy
+    const isRevokedOnChain = await blockchainRelayer.isRevoked(
+      dbCred?.credentialId || commitment,
+      commitment
+    );
+
+    if (isRevokedOnChain) {
+      if (dbCred && dbCred.status !== CredentialStatus.REVOKED) {
+        await prisma.credential
+          .update({
+            where: { id: dbCred.id },
+            data: { status: CredentialStatus.REVOKED },
+          })
+          .catch(() => {});
+      }
+
+      await prisma.verificationRequest.create({
+        data: {
+          credentialId: dbCred?.id,
+          clientIpHash: clientIp,
+          verificationType: VerificationType.ZK_PROOF,
+          resultStatus: VerificationResult.REVOKED,
+        },
+      });
+
+      return {
+        isValid: false,
+        result: VerificationResult.REVOKED,
+        error: 'The underlying academic credential has been revoked on the blockchain registry',
       };
     }
 
@@ -168,6 +201,7 @@ export class VerificationService {
       },
     };
   }
+
   async verifyPresentation(presentation: VerifiablePresentation2026, clientIp = '127.0.0.1') {
     if (!presentation || !presentation.verifiableCredential) {
       throw new ValidationError('Invalid presentation structure');
@@ -221,6 +255,38 @@ export class VerificationService {
       };
     }
 
+    // Check on-chain revocation state on Polygon Amoy
+    const isRevokedOnChain = await blockchainRelayer.isRevoked(
+      vc.id,
+      vc.credentialSubject.academicStanding.commitment
+    );
+
+    if (isRevokedOnChain) {
+      if (dbCred && dbCred.status !== CredentialStatus.REVOKED) {
+        await prisma.credential
+          .update({
+            where: { id: dbCred.id },
+            data: { status: CredentialStatus.REVOKED },
+          })
+          .catch(() => {});
+      }
+
+      await prisma.verificationRequest.create({
+        data: {
+          credentialId: dbCred?.id,
+          clientIpHash: clientIp,
+          verificationType: VerificationType.STANDARD_QR,
+          resultStatus: VerificationResult.REVOKED,
+        },
+      });
+
+      return {
+        isValid: false,
+        result: VerificationResult.REVOKED,
+        error: 'Credential has been revoked on the blockchain registry',
+      };
+    }
+
     // 3. Record successful verification log
     if (dbCred) {
       await prisma.verificationRequest.create({
@@ -249,41 +315,85 @@ export class VerificationService {
         department: vc.credentialSubject.department,
         issuerName: vc.issuer.name,
         graduationYear: vc.credentialSubject.graduationYear,
-        studentName: vc.credentialSubject.studentName,
-        cgpaRaw: vc.credentialSubject.academicStanding.cgpaRaw,
-        commitment: vc.credentialSubject.academicStanding.commitment,
+        cgpaRaw: vc.credentialSubject.academicStanding?.cgpaRaw,
+        claimsDisclosed: Object.keys(vc.credentialSubject).filter(
+          (k) => !['id', 'degreeName', 'department', 'graduationYear'].includes(k)
+        ),
       },
     };
   }
 
-  async verifyDirectCredential(vc: VerifiableCredential2026, clientIp = '127.0.0.1') {
-    const vcResult = await verifyAcademicCredential(vc);
-
-    if (!vcResult.isValid) {
+  async verifyRawAcademicCredential(vc: VerifiableCredential2026, clientIp = '127.0.0.1') {
+    const credResult = await verifyAcademicCredential(vc);
+    if (!credResult.isValid) {
       return {
         isValid: false,
         result: VerificationResult.INVALID,
-        error: vcResult.error,
+        error: credResult.error || 'Cryptographic signature on credential failed validation',
+        checks: {
+          schemaValid: false,
+          signatureValid: false,
+          commitmentValid: false,
+          notRevoked: false,
+        },
+      };
+    }
+
+    const dbCred = await prisma.credential.findFirst({
+      where: {
+        commitment: vc.credentialSubject.academicStanding.commitment,
+      },
+    });
+
+    if (dbCred && dbCred.status === CredentialStatus.REVOKED) {
+      return {
+        isValid: false,
+        result: VerificationResult.REVOKED,
+        error: 'Credential has been revoked',
+        checks: {
+          schemaValid: true,
+          signatureValid: true,
+          commitmentValid: true,
+          notRevoked: false,
+        },
+      };
+    }
+
+    // Check on-chain revocation state on Polygon Amoy
+    const isRevokedOnChain = await blockchainRelayer.isRevoked(
+      vc.id,
+      vc.credentialSubject.academicStanding.commitment
+    );
+
+    if (isRevokedOnChain) {
+      return {
+        isValid: false,
+        result: VerificationResult.REVOKED,
+        error: 'Credential has been revoked on the blockchain registry',
+        checks: {
+          schemaValid: true,
+          signatureValid: true,
+          commitmentValid: true,
+          notRevoked: false,
+        },
       };
     }
 
     return {
       isValid: true,
       result: VerificationResult.VALID,
-      status: 'VERIFIED',
       checks: {
         schemaValid: true,
         signatureValid: true,
         commitmentValid: true,
-        issuerAccredited: true,
+        notRevoked: true,
       },
-      credentialDetails: {
-        degreeName: vc.credentialSubject.degreeName,
-        department: vc.credentialSubject.department,
-        issuerName: vc.issuer.name,
-        graduationYear: vc.credentialSubject.graduationYear,
-      },
+      credential: vc,
     };
+  }
+
+  async verifyDirectCredential(vc: VerifiableCredential2026, clientIp = '127.0.0.1') {
+    return this.verifyRawAcademicCredential(vc, clientIp);
   }
 }
 

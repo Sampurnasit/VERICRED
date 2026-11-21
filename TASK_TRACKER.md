@@ -165,3 +165,32 @@
   - [x] Wire institution student management (`/institution/students`) to `GET /api/v1/institutions/students`
   - [x] Wire student sovereign wallet (`/student/wallet`) to `GET /api/v1/credentials/student`
   - [x] Wire consortium governance (`/admin/institutions`) to `GET /api/v1/admin/institutions`, `POST /api/v1/admin/institutions/:id/approve`, and `suspend`
+
+---
+
+## Phase 9: Blockchain Relayer & Polygon Amoy Production Alignment
+- [x] **Smart Contract Alignment & Live Testnet Verification**
+  - [x] Verified deployed smart contracts live on Polygon Amoy (Chain ID 80002):
+    - `InstitutionRegistry`: `0xF250601Ca003f6F97ae6a5b24eFFD99FC2D95266`
+    - `CredentialRegistry`: `0x35E7F512031B4F46c02e76bb1445E2DC38C7AB22`
+    - `RevocationRegistry`: `0xaacEAe5171E339763C3Cb68C5d2841816058DF78`
+  - [x] Verified relayer wallet (`0x59878379c2A7C3487F7218dA077AdFcAD4B1BC8a`) funded with 0.93339 POL.
+  - [x] Registered and accredited relayer on Polygon Amoy `InstitutionRegistry` to permit on-chain anchoring.
+  - [x] Synchronized `.env`, `apps/api/.env`, and `apps/web/.env` with deployed Polygon Amoy testnet contract addresses and RPCs.
+- [x] **Relayer Service Implementation (`apps/api`)**
+  - [x] Implemented `BlockchainRelayerService` in `apps/api/src/modules/blockchain/blockchainRelayer.service.ts` using `@vericred/contract-client` and `ethers`.
+  - [x] Integrated `anchorCredential` with bytes32 credential digest and Poseidon commitment zero-padding.
+  - [x] Integrated `anchorBatchCredentials` for high-throughput graduating cohort issuance.
+  - [x] Integrated `revokeCredential` with reason code mapping and sovereign issuer authorization.
+  - [x] Integrated `isRevoked` and `isInstitutionAuthorized` with 3-second defensive timeout guards and resilient fallback.
+- [x] **Service Integration & Full-Stack Verification**
+  - [x] Linked `BlockchainRelayerService` to `CredentialService.issueSingleCredential`, storing on-chain transaction hash in PostgreSQL.
+  - [x] Linked `BlockchainRelayerService` to `CredentialService.issueBulkCredentials`, batch-anchoring cohort credentials on-chain.
+  - [x] Linked `BlockchainRelayerService` to `CredentialService.revokeCredential`, broadcasting tamper-evident revocation events.
+  - [x] Linked `BlockchainRelayerService` to `VerificationService.verifyZkProof` and `verifyPresentation` for real-time on-chain revocation checking.
+  - [x] Verified 0 TypeScript errors across all 9 workspaces via `pnpm -r typecheck`.
+  - [x] Verified 42/42 API Vitest tests passing (`pnpm --filter @vericred/api test`).
+  - [x] Verified 20/20 Smart Contract Hardhat tests passing (`pnpm --filter @vericred/blockchain test`).
+  - [x] Verified 7/7 ZK Circuit Groth16 tests passing (`pnpm --filter @vericred/zk test`).
+  - [x] Verified 7/7 Playwright browser E2E demonstration tests passing (`pnpm --filter @vericred/web exec playwright test`).
+

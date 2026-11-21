@@ -12,6 +12,7 @@ import {
   type CsvCredentialRow,
 } from '@vericred/credential-schema';
 import { generateIssuerKeyPair } from '@vericred/crypto';
+import { blockchainRelayer } from '../blockchain/blockchainRelayer.service.js';
 
 export class CredentialService {
   /**
@@ -95,6 +96,12 @@ export class CredentialService {
       },
     });
 
+    // Anchor credential commitment on Polygon Amoy CredentialRegistry
+    const onChainTxHash = await blockchainRelayer.anchorCredential(
+      vc.id,
+      vc.credentialSubject.academicStanding.commitment
+    );
+
     // Store in PostgreSQL
     const credential = await prisma.credential.create({
       data: {
@@ -112,6 +119,7 @@ export class CredentialService {
         commitment: vc.credentialSubject.academicStanding.commitment,
         signature: JSON.stringify(vc.proof.signatureValue),
         status: CredentialStatus.ACTIVE,
+        onChainTxHash,
         expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
       },
       include: {
@@ -138,6 +146,7 @@ export class CredentialService {
           degree: input.degreeName,
           studentEnrollment: student.enrollmentNumber,
           commitment: vc.credentialSubject.academicStanding.commitment,
+          onChainTxHash,
         },
       },
     });
@@ -158,7 +167,7 @@ export class CredentialService {
     }
 
     const signingKey = await this.getActiveInstitutionKey(institution.id);
-    const issuedCredentials = [];
+    const preparedItems = [];
 
     for (const record of records) {
       // Find or create student for this institution
@@ -219,24 +228,37 @@ export class CredentialService {
         },
       });
 
+      preparedItems.push({ student, record, vc });
+    }
+
+    // Batch anchor to Polygon Amoy CredentialRegistry
+    const batchItemsToAnchor = preparedItems.map((item) => ({
+      credentialId: item.vc.id,
+      commitment: item.vc.credentialSubject.academicStanding.commitment,
+    }));
+
+    const batchTxHash = await blockchainRelayer.anchorBatchCredentials(batchItemsToAnchor);
+
+    const issuedCredentials = [];
+    for (const item of preparedItems) {
       const cred = await prisma.credential.create({
         data: {
-          credentialId: vc.id,
+          credentialId: item.vc.id,
           institutionId: institution.id,
-          studentId: student.id,
-          degreeName: record.degreeName,
-          department: record.department,
-          academicSession: record.academicSession,
-          graduationYear: record.graduationYear,
-          cgpaRaw: record.cgpa,
-          cgpaScaled: vc.credentialSubject.academicStanding.cgpaScaled,
-          blindingSalt: vc.credentialSubject.academicStanding.blindingSalt,
-          commitment: vc.credentialSubject.academicStanding.commitment,
-          signature: JSON.stringify(vc.proof.signatureValue),
+          studentId: item.student.id,
+          degreeName: item.record.degreeName,
+          department: item.record.department,
+          academicSession: item.record.academicSession,
+          graduationYear: item.record.graduationYear,
+          cgpaRaw: item.record.cgpa,
+          cgpaScaled: item.vc.credentialSubject.academicStanding.cgpaScaled,
+          blindingSalt: item.vc.credentialSubject.academicStanding.blindingSalt,
+          commitment: item.vc.credentialSubject.academicStanding.commitment,
+          signature: JSON.stringify(item.vc.proof.signatureValue),
           status: CredentialStatus.ACTIVE,
+          onChainTxHash: batchTxHash,
         },
       });
-
       issuedCredentials.push(cred);
     }
 
@@ -247,7 +269,10 @@ export class CredentialService {
         entityType: 'Institution',
         entityId: institution.id,
         ipAddress: '127.0.0.1',
-        metadata: { count: issuedCredentials.length },
+        metadata: {
+          count: issuedCredentials.length,
+          onChainTxHash: batchTxHash,
+        },
       },
     });
 
@@ -367,6 +392,19 @@ export class CredentialService {
       throw new AuthorizationError('Only the issuing institution can revoke this credential');
     }
 
+    // Map revocation reason to smart contract code (1=Unspecified, 2=Disciplinary, 3=Admin Error, 4=Retracted)
+    let reasonCode = 1;
+    if (input.revocationReason === 'DISCIPLINARY') reasonCode = 2;
+    else if (input.revocationReason === 'ADMIN_ERROR') reasonCode = 3;
+    else if (input.revocationReason === 'RETRACTED') reasonCode = 4;
+
+    // Anchor revocation on Polygon Amoy RevocationRegistry
+    const onChainTxHash = await blockchainRelayer.revokeCredential(
+      credential.credentialId,
+      credential.commitment,
+      reasonCode
+    );
+
     const updated = await prisma.credential.update({
       where: { id: credential.id },
       data: {
@@ -381,7 +419,7 @@ export class CredentialService {
           institutionId: credential.institutionId,
           reasonCode: (input.revocationReason as any) || 'UNSPECIFIED',
           reasonDetails: input.revocationReason || 'Revoked by institution',
-          onChainTxHash: `0x${Date.now().toString(16)}`,
+          onChainTxHash,
         },
       });
     } catch {
@@ -399,6 +437,7 @@ export class CredentialService {
         metadata: {
           revocationReason: input.revocationReason,
           commitment: credential.commitment,
+          onChainTxHash,
         },
       },
     });
