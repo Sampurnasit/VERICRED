@@ -240,4 +240,20 @@
   - [x] Added interactive FAQ accordion, technical metric highlights, and section anchors (`#how-it-works`, `#features`, `#faq`) on the landing page (`/`).
   - [x] Verified 100% clean test execution across all 87 unit, circuit, smart contract, and Playwright browser E2E tests.
 
+---
+
+## Phase 12: Comprehensive Codebase Audit, Dynamic Personalization & Governance Maturation
+- [x] **Consortium Administrative Governance Expansion (`apps/api` & `apps/web`)**
+  - [x] Replaced development placeholder transaction hash with deterministic cryptographic SHA-256 hash in `admin.service.ts`.
+  - [x] Implemented institution rejection workflow (`POST /api/v1/admin/institutions/:id/reject`) with state updates and immutable audit logging.
+  - [x] Added unit tests for admin approval, rejection, and error handling (`apps/api/test/admin.test.ts` — 3/3 tests passing, total 48/48 API tests passing).
+  - [x] Implemented new dedicated Platform Audit Log viewer UI (`/admin/audit-logs`) with dynamic action category filtering, event statistics, and actor tracing.
+  - [x] Added 1-click "Reject" action alongside "Approve" for pending institutions on `/admin/institutions`.
+  - [x] Added "Audit Logs" navigation link in `apps/web/app/admin/layout.tsx`.
+- [x] **Dynamic Context & User Session Alignment (`apps/web`)**
+  - [x] Refactored `apps/web/app/institution/layout.tsx` to pull real authenticated legal name, short code, and accreditation status from `useAuth()`.
+  - [x] Refactored `apps/web/app/student/layout.tsx` to dynamically bind student recipient name, initials, enrollment identifier, and department from `useAuth()`.
+  - [x] Verified 0 TypeScript errors across all 9 monorepo workspaces via `pnpm -r typecheck`.
+
+
 

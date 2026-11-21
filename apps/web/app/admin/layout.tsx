@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Layers, Building2, Pause, Plus } from 'lucide-react';
+import { Layers, Building2, ClipboardList, Pause, Plus } from 'lucide-react';
 
 export default function AdminLayout({
   children,
@@ -15,6 +15,7 @@ export default function AdminLayout({
   const navItems = [
     { name: 'Overview', href: '/admin/overview', icon: Layers },
     { name: 'Institution Registry', href: '/admin/institutions', icon: Building2 },
+    { name: 'Audit Logs', href: '/admin/audit-logs', icon: ClipboardList },
   ];
 
   return (

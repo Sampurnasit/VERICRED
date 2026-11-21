@@ -3,7 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Award, QrCode, ShieldCheck, EyeOff, History, Wallet, Sparkles } from 'lucide-react';
+import { Award, ShieldCheck, Wallet, Sparkles } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 export default function StudentLayout({
   children,
@@ -11,6 +12,14 @@ export default function StudentLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  const firstName = user?.firstName || 'Aarav';
+  const lastName = user?.lastName || 'Sen';
+  const fullName = `${firstName} ${lastName}`.trim();
+  const initials = `${firstName[0] || 'A'}${lastName[0] || 'S'}`.toUpperCase();
+  const enrollment = user?.student?.enrollmentNumber || 'VC2026001';
+  const department = user?.student?.department || 'Department of Computer Science & Engineering';
 
   const navItems = [
     { name: 'Overview', href: '/student/overview', icon: Award },
@@ -27,22 +36,23 @@ export default function StudentLayout({
         <div className="flex items-center gap-5 relative z-10">
           <div className="h-16 w-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-cyan-500 to-emerald-400 p-[1.5px] shadow-xl shadow-blue-500/20 shrink-0">
             <div className="h-full w-full rounded-[14px] bg-[#080D1A] flex items-center justify-center font-sans text-2xl font-black text-white">
-              AS
+              {initials}
             </div>
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-2xl font-black text-white tracking-tight">Aarav Sen</h1>
+              <h1 className="text-2xl font-black text-white tracking-tight">{fullName}</h1>
               <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-3 py-0.5 text-xs font-bold text-emerald-400 flex items-center gap-1.5 shadow-sm">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 Verified Student
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-1">
-              Enrollment: <span className="font-mono text-cyan-300 font-semibold">VC2026001</span> • Department of Computer Science &amp; Engineering
+              Enrollment: <span className="font-mono text-cyan-300 font-semibold">{enrollment}</span>
+              {department && department !== 'N/A' && <> • {department}</>}
             </p>
-            <p className="text-xs text-slate-500 mt-0.5">
-              RCC Institute of Information Technology • Class of 2026
+            <p className="text-xs text-slate-500 mt-0.5 font-mono">
+              DID: did:vericred:student:{user?.student?.id || 'holder'}
             </p>
           </div>
         </div>

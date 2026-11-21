@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { prisma } from '../../db/prisma.js';
 import { InstitutionStatus, ApprovalAction, NotFoundError } from '@vericred/shared';
 
@@ -38,13 +39,15 @@ export class AdminService {
         data: { status: InstitutionStatus.APPROVED },
       });
 
+      const onChainTxHash = `0x${crypto.createHash('sha256').update(`approve:${institutionId}:${Date.now()}`).digest('hex')}`;
+
       await tx.institutionApproval.create({
         data: {
           institutionId,
           reviewerId,
           action: ApprovalAction.APPROVE,
           decisionNotes,
-          onChainTxHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef', // Mocked in dev
+          onChainTxHash,
         },
       });
 
@@ -52,6 +55,47 @@ export class AdminService {
         data: {
           actorId: reviewerId,
           action: 'INSTITUTION_APPROVED',
+          entityType: 'Institution',
+          entityId: institutionId,
+          ipAddress: '127.0.0.1',
+          metadata: { legalName: institution.legalName, shortCode: institution.shortCode, onChainTxHash },
+        },
+      });
+
+      return inst;
+    });
+
+    return updated;
+  }
+
+  async rejectInstitution(institutionId: string, reviewerId: string, decisionNotes = 'Rejected by administrator') {
+    const institution = await prisma.institution.findUnique({
+      where: { id: institutionId },
+    });
+
+    if (!institution) {
+      throw new NotFoundError('Institution', institutionId);
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const inst = await tx.institution.update({
+        where: { id: institutionId },
+        data: { status: InstitutionStatus.REJECTED },
+      });
+
+      await tx.institutionApproval.create({
+        data: {
+          institutionId,
+          reviewerId,
+          action: ApprovalAction.REJECT,
+          decisionNotes,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId: reviewerId,
+          action: 'INSTITUTION_REJECTED',
           entityType: 'Institution',
           entityId: institutionId,
           ipAddress: '127.0.0.1',

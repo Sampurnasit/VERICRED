@@ -36,6 +36,21 @@ export class AdminController {
     }
   }
 
+  async rejectInstitution(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { decisionNotes } = req.body;
+      const institution = await adminService.rejectInstitution(
+        id,
+        req.user!.userId,
+        decisionNotes
+      );
+      sendSuccess(res, { institution, message: 'Institution rejected successfully' });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async suspendInstitution(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;

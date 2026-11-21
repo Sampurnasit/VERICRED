@@ -276,6 +276,12 @@ export const api = {
       });
     },
 
+    async rejectInstitution(id: string) {
+      return request<{ institution: any; message: string }>(`/api/v1/admin/institutions/${id}/reject`, {
+        method: 'POST',
+      });
+    },
+
     async suspendInstitution(id: string) {
       return request<{ institution: any; message: string }>(`/api/v1/admin/institutions/${id}/suspend`, {
         method: 'POST',
@@ -283,7 +289,7 @@ export const api = {
     },
 
     async getAuditLogs() {
-      return request<{ logs: any[] }>('/api/v1/admin/audit-logs', {
+      return request<{ auditLogs: any[] }>('/api/v1/admin/audit-logs', {
         method: 'GET',
       });
     },

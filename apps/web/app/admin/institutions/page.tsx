@@ -96,6 +96,17 @@ export default function AdminInstitutionsPage() {
     );
   };
 
+  const handleReject = async (id: string) => {
+    try {
+      await api.admin.rejectInstitution(id);
+    } catch (err) {
+      console.warn('Backend reject notice:', err);
+    }
+    setInstitutions((prev) =>
+      prev.map((inst) => (inst.id === id ? { ...inst, status: 'REJECTED' } : inst))
+    );
+  };
+
   const handleSuspend = async (id: string) => {
     try {
       await api.admin.suspendInstitution(id);
@@ -245,13 +256,22 @@ export default function AdminInstitutionsPage() {
                   </td>
                   <td className="py-4 px-6 text-right">
                     {inst.status === 'PENDING' ? (
-                      <button
-                        type="button"
-                        onClick={() => handleApprove(inst.id)}
-                        className="inline-flex items-center gap-1 rounded-lg bg-[#458BFF] px-3 py-1.5 text-xs font-semibold text-white hover:brightness-110 transition shadow-sm"
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Approve On-Chain
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleApprove(inst.id)}
+                          className="inline-flex items-center gap-1 rounded-lg bg-[#458BFF] px-3 py-1.5 text-xs font-semibold text-white hover:brightness-110 transition shadow-sm"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleReject(inst.id)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500/20 transition shadow-sm"
+                        >
+                          <XCircle className="h-3.5 w-3.5" /> Reject
+                        </button>
+                      </div>
                     ) : inst.status === 'APPROVED' ? (
                       <button
                         type="button"
