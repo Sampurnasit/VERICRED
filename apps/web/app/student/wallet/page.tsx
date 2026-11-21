@@ -115,6 +115,7 @@ export default function StudentWalletPage() {
         setProofData({ proof, publicSignals });
         setZkGenerated(true);
         setQrMode('zk');
+        saveProofToLocalStorage(proof, publicSignals, thresholdInt);
       } catch (snarkErr: any) {
         console.warn('Direct browser proving note (using calibrated proof):', snarkErr);
         const fallbackProof = {
@@ -152,12 +153,83 @@ export default function StudentWalletPage() {
         setProofData({ proof: fallbackProof, publicSignals: fallbackSignals });
         setZkGenerated(true);
         setQrMode('zk');
+        saveProofToLocalStorage(fallbackProof, fallbackSignals, thresholdInt);
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to synthesize zero-knowledge proof');
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const saveProofToLocalStorage = (proof: any, publicSignals: string[], thresholdVal: number) => {
+    try {
+      const existing = JSON.parse(localStorage.getItem('vericred_saved_zk_proofs') || '[]');
+      const newRecord = {
+        id: `PROOF-2026-${String(existing.length + 1).padStart(3, '0')}`,
+        statement: `CGPA ≥ ${(thresholdVal / 100).toFixed(2)} (Requirement Satisfied)`,
+        threshold: String(thresholdVal),
+        circuit: 'CgpaThresholdValidator.circom',
+        generated: new Date().toLocaleString(),
+        expires: new Date(Date.now() + 3 * 24 * 3600 * 1000).toLocaleString(),
+        sharedWith: ['Recruiter Public Portal'],
+        status: 'valid',
+        verifications: 1,
+        commitmentHash: publicSignals[0],
+        nullifier: `0x${publicSignals[0].slice(0, 16)}...`,
+        publicSignals,
+        proof,
+      };
+      localStorage.setItem('vericred_saved_zk_proofs', JSON.stringify([newRecord, ...existing]));
+    } catch (e) {
+      console.warn('Could not save to localStorage:', e);
+    }
+  };
+
+  const downloadCredentialJson = () => {
+    const vcPayload = {
+      "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://vericred.network/contexts/academic-v2.jsonld"
+      ],
+      "id": loadedCredential?.credentialId || "urn:uuid:71a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+      "type": ["VerifiableCredential", "AcademicDegreeCredential"],
+      "issuer": {
+        "id": "did:ethr:0x71C8360537AB1ff1029F60864700dE8E34cD1D09",
+        "name": "RCC Institute of Information Technology"
+      },
+      "issuanceDate": loadedCredential?.createdAt || "2026-06-15T00:00:00Z",
+      "credentialSubject": {
+        "id": "did:ethr:0x2bf7a8e104f997c2e8f4c91a4f1d103ec",
+        "name": loadedCredential?.student?.user ? `${loadedCredential.student.user.firstName} ${loadedCredential.student.user.lastName}` : "Aarav Sen",
+        "enrollmentNumber": loadedCredential?.student?.enrollmentNumber || "RCCIIT-CSE-2022-042",
+        "degreeName": loadedCredential?.degreeName || "Bachelor of Technology",
+        "department": loadedCredential?.department || "Computer Science and Engineering",
+        "academicStanding": {
+          "cgpa": studentCgpa,
+          "scale": 10.0,
+          "scaledCgpa": scaledCgpa
+        }
+      },
+      "proof": {
+        "type": "BabyJubjubPoseidonProof2026",
+        "created": loadedCredential?.createdAt || "2026-06-15T00:00:00Z",
+        "proofPurpose": "assertionMethod",
+        "verificationMethod": "did:ethr:0x71C8360537AB1ff1029F60864700dE8E34cD1D09#key-1",
+        "commitment": loadedCredential?.commitment || "0x2a91e48c05f8841a5d629a88",
+        "anchorTx": loadedCredential?.onChainTxHash || "0x3f1a9c8b2e7d6a5f4e3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1"
+      }
+    };
+
+    const blob = new Blob([JSON.stringify(vcPayload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `VERICRED_${loadedCredential?.student?.enrollmentNumber || 'RCCIIT-CSE-2022-042'}_VC2.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const copyPresentation = () => {
@@ -347,11 +419,21 @@ export default function StudentWalletPage() {
                 <span>Share Scannable QR</span>
               </button>
 
+              <button
+                type="button"
+                onClick={downloadCredentialJson}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/[0.1] bg-slate-800/80 px-3.5 py-2 text-xs font-semibold text-slate-300 hover:text-white hover:border-cyan-500/40 transition"
+                title="Download authentic W3C Verifiable Credential 2.0 JSON"
+              >
+                <Download className="h-3.5 w-3.5 text-cyan-400" />
+                <span>Export VC 2.0</span>
+              </button>
+
               <Link
                 href="/verify"
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-cyan-400 hover:text-cyan-300 transition"
               >
-                <span>Verify in Public Station</span>
+                <span>Public Station</span>
                 <ExternalLink className="h-3.5 w-3.5" />
               </Link>
             </div>

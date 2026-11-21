@@ -51,7 +51,7 @@ export default function InstitutionLayout({
 
         <div className="flex items-center gap-3 relative z-10">
           <div className="rounded-xl border border-white/[0.1] bg-slate-950/80 px-4 py-2 text-xs font-mono text-slate-300">
-            Smart Contract: 0x5FbDB...aa3
+            Smart Contract: {process.env.NEXT_PUBLIC_INSTITUTION_REGISTRY_ADDRESS ? `${process.env.NEXT_PUBLIC_INSTITUTION_REGISTRY_ADDRESS.slice(0, 7)}...${process.env.NEXT_PUBLIC_INSTITUTION_REGISTRY_ADDRESS.slice(-4)}` : '0xF250...5266'}
           </div>
         </div>
       </div>

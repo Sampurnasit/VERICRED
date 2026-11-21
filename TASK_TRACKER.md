@@ -215,11 +215,29 @@
   - [x] Upgrade `apps/api/src/index.ts` with real database health checks (`prisma.$queryRaw`), request correlation IDs (`X-Request-Id`), and graceful `SIGTERM`/`SIGINT` shutdown handlers.
 - [x] **Full Regression Verification & Production Readiness**
   - [x] Verified 15/15 tests in `packages/crypto`.
-  - [x] Verified 42/42 tests in `apps/api`.
+  - [x] Verified 45/45 tests in `apps/api`.
   - [x] Verified 20/20 tests in `blockchain`.
   - [x] Verified 7/7 tests in `zk`.
   - [x] Verified 7/7 Playwright browser E2E tests in `apps/web`.
   - [x] Verified 0 TypeScript errors across all 9 workspaces via `pnpm -r typecheck`.
-  - [x] Verified Next.js standalone production build (`apps/web/.next/standalone`).
+  - [x] Verified Next.js production build (15/15 static routes prerendered).
+
+---
+
+## Phase 11: End-to-End Prototype Feature Completeness & Interactive Vault
+- [x] **Student Identity Roster & Enrollment Endpoint (`apps/api` & `apps/web`)**
+  - [x] Implemented `InstitutionService.enrollStudent` and `POST /api/v1/institutions/students` with automatic student user creation, password hashing, and enrollment linking.
+  - [x] Authored unit test suite for student enrollment (`apps/api/test/institutions.test.ts` — 3/3 tests passing).
+  - [x] Wired modal on `/institution/students` to call `api.institutions.enrollStudent` with immediate optimistic table updates.
+  - [x] Integrated 1-click issuance linking from Student Roster to `/institution/issue` with query parameter auto-fill.
+- [x] **Student Sovereign Dashboard & Credential Export (`apps/web`)**
+  - [x] Updated `/student/overview` to fetch real academic credentials, live Polygon Amoy status, and real audit timelines.
+  - [x] Implemented client-side W3C VC 2.0 Credential JSON download (`downloadCredentialJson`) in `/student/wallet` and `/student/overview`.
+  - [x] Connected ZK Proof Vault synchronization across Wallet, Overview, and Proofs pages (`vericred_saved_zk_proofs`).
+  - [x] Added 1-click "Verify in Portal" actions on each proof card in `/student/proofs` directing straight into `/verify`.
+- [x] **Consortium Governance & Public Landing Polish (`apps/web`)**
+  - [x] Wired `/admin/overview` to compute real-time consortium statistics and pending accreditations from `api.admin.getAllInstitutions()`.
+  - [x] Added interactive FAQ accordion, technical metric highlights, and section anchors (`#how-it-works`, `#features`, `#faq`) on the landing page (`/`).
+  - [x] Verified 100% clean test execution across all 87 unit, circuit, smart contract, and Playwright browser E2E tests.
 
 

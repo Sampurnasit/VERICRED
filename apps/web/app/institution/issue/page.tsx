@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { api } from '../../../lib/api';
 import {
   FilePlus2,
@@ -23,7 +24,8 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
-export default function IssueCredentialPage() {
+function IssueCredentialContent() {
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'single' | 'bulk'>('single');
   const [degreeName, setDegreeName] = useState('Bachelor of Technology');
   const [department, setDepartment] = useState('Computer Science and Engineering');
@@ -32,6 +34,18 @@ export default function IssueCredentialPage() {
   const [graduationYear, setGraduationYear] = useState('2026');
   const [cgpa, setCgpa] = useState('8.72');
   const [academicSession, setAcademicSession] = useState('2022-2026');
+
+  useEffect(() => {
+    const urlEnrollment = searchParams.get('enrollment');
+    const urlName = searchParams.get('name');
+    const urlDept = searchParams.get('dept');
+    const urlCgpa = searchParams.get('cgpa');
+
+    if (urlEnrollment) setStudentEnrollment(urlEnrollment);
+    if (urlName) setStudentName(urlName);
+    if (urlDept) setDepartment(urlDept);
+    if (urlCgpa) setCgpa(urlCgpa);
+  }, [searchParams]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [issuedCredential, setIssuedCredential] = useState<any>(null);
@@ -507,5 +521,19 @@ RCCIIT-ECE-2022-088,Rohan Das,rohan.das@student.rcciit.ac.in,Bachelor of Technol
         </div>
       )}
     </div>
+  );
+}
+
+export default function IssueCredentialPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[300px]">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent" />
+        </div>
+      }
+    >
+      <IssueCredentialContent />
+    </Suspense>
   );
 }

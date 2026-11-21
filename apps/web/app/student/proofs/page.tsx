@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   ShieldCheck,
@@ -217,6 +217,13 @@ function ProofCard({ proof }: { proof: ZKProof }) {
                 <QrCode className="h-3.5 w-3.5" />
                 Share via QR
               </Link>
+              <Link
+                href={`/verify?mode=zk&threshold=${encodeURIComponent((parseInt(proof.threshold || '800', 10) / 100).toFixed(2))}`}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3.5 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Verify in Portal
+              </Link>
               <button
                 onClick={() => handleCopy(proof.nullifier)}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-white/[0.1] bg-slate-800/70 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:border-cyan-500/40 hover:text-white transition"
@@ -291,11 +298,29 @@ function ProofCard({ proof }: { proof: ZKProof }) {
 
 export default function StudentProofsPage() {
   const [filter, setFilter] = useState<'all' | ProofStatus>('all');
+  const [proofs, setProofs] = useState<ZKProof[]>(PROOFS);
 
-  const filtered = PROOFS.filter((p) => filter === 'all' || p.status === filter);
-  const validCount = PROOFS.filter((p) => p.status === 'valid').length;
-  const expiredCount = PROOFS.filter((p) => p.status === 'expired').length;
-  const totalVerifications = PROOFS.reduce((sum, p) => sum + p.verifications, 0);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('vericred_saved_zk_proofs');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setProofs((prev) => [
+            ...parsed,
+            ...prev.filter((p) => !parsed.some((s: any) => s.id === p.id)),
+          ]);
+        }
+      }
+    } catch (e) {
+      console.warn('Could not read saved proofs:', e);
+    }
+  }, []);
+
+  const filtered = proofs.filter((p) => filter === 'all' || p.status === filter);
+  const validCount = proofs.filter((p) => p.status === 'valid').length;
+  const expiredCount = proofs.filter((p) => p.status === 'expired').length;
+  const totalVerifications = proofs.reduce((sum, p) => sum + (p.verifications || 1), 0);
 
   return (
     <div className="space-y-8">
@@ -304,7 +329,7 @@ export default function StudentProofsPage() {
         {[
           {
             label: 'Total Proofs',
-            value: PROOFS.length,
+            value: proofs.length,
             color: 'blue',
             icon: ShieldCheck,
             sub: 'All-time generated',

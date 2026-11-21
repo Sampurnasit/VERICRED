@@ -15,6 +15,7 @@ export default function StudentLayout({
   const navItems = [
     { name: 'Overview', href: '/student/overview', icon: Award },
     { name: 'Credential Wallet', href: '/student/wallet', icon: Wallet },
+    { name: 'ZK Proof Vault', href: '/student/proofs', icon: ShieldCheck },
   ];
 
   return (

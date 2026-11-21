@@ -276,7 +276,7 @@ export default function HomePage() {
       </section>
 
       {/* Core Architectural Pillars */}
-      <section className="w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16 border-t border-white/[0.06]">
+      <section id="features" className="w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16 border-t border-white/[0.06]">
         <div className="text-center mb-14">
           <h2 className="text-xs font-bold uppercase tracking-wider text-blue-400">
             Engineered for High-Assurance Trust
@@ -342,7 +342,7 @@ export default function HomePage() {
       </section>
 
       {/* End-to-End Flow */}
-      <section className="w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16 mb-16">
+      <section id="how-it-works" className="w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
         <div className="rounded-3xl border border-white/[0.08] bg-slate-900/50 p-8 sm:p-12">
           <div className="max-w-2xl mb-12">
             <h2 className="text-xs font-bold uppercase tracking-wider text-cyan-400">
@@ -385,6 +385,60 @@ export default function HomePage() {
                 Verifiers execute BN254 bilinear pairing checks verifying credentials without unmasking private identity.
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Frequently Asked Questions */}
+      <section id="faq" className="w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16 mb-16 border-t border-white/[0.06]">
+        <div className="text-center mb-12">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-cyan-400">
+            Frequently Asked Questions
+          </h2>
+          <p className="mt-2 text-3xl font-extrabold text-white">
+            Answers for Universities, Students &amp; Recruiters
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="rounded-2xl border border-white/[0.08] bg-slate-900/60 p-6 space-y-2">
+            <h4 className="text-sm font-bold text-white flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-cyan-400 shrink-0" />
+              How does the Zero-Knowledge Proof conceal my exact GPA?
+            </h4>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Inside the Circom arithmetic circuit, your actual scaled CGPA and private blinding salt remain private witness inputs. The Groth16 proof algorithm creates three elliptic curve points ($A, B, C$) proving that your score meets the threshold constraint ($x \ge T$) and matches the university-signed Poseidon commitment without revealing $x$.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/[0.08] bg-slate-900/60 p-6 space-y-2">
+            <h4 className="text-sm font-bold text-white flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-blue-400 shrink-0" />
+              What data is stored on the Polygon Amoy blockchain?
+            </h4>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Zero plaintext academic data or personally identifiable information (PII) is written on-chain. The smart contracts store only 32-byte opaque credential hashes, Poseidon commitments, issuer public keys, and cryptographic revocation bitmasks.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/[0.08] bg-slate-900/60 p-6 space-y-2">
+            <h4 className="text-sm font-bold text-white flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+              What happens if an institution revokes a credential?
+            </h4>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              The issuing university calls <span className="font-mono text-slate-200">RevocationRegistry.revokeCredential</span>. The revocation takes effect on-chain immediately. Any subsequent verification attempt in the public portal or ZK pairing check flags the credential in red as REVOKED.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/[0.08] bg-slate-900/60 p-6 space-y-2">
+            <h4 className="text-sm font-bold text-white flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-amber-400 shrink-0" />
+              Do recruiters or employers need an account to verify?
+            </h4>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              No login or account is required. The public verification station at <span className="font-mono text-cyan-300">/verify</span> allows scanning any student QR code, uploading screenshots, or verifying Groth16 proofs completely anonymously.
+            </p>
           </div>
         </div>
       </section>

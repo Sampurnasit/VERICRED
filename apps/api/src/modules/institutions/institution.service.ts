@@ -1,5 +1,13 @@
+import argon2 from 'argon2';
 import { prisma } from '../../db/prisma.js';
-import { RegisterInstitutionInput, InstitutionStatus, ValidationError, NotFoundError } from '@vericred/shared';
+import {
+  RegisterInstitutionInput,
+  InstitutionStatus,
+  ValidationError,
+  NotFoundError,
+  UserRole,
+  APP_CONSTANTS,
+} from '@vericred/shared';
 
 export class InstitutionService {
   async register(userId: string, input: RegisterInstitutionInput) {
@@ -84,6 +92,88 @@ export class InstitutionService {
     });
 
     return students;
+  }
+
+  async enrollStudent(
+    userId: string,
+    input: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      enrollmentNumber: string;
+      department: string;
+      batchYear: number;
+    }
+  ) {
+    const institution = await prisma.institution.findUnique({
+      where: { userId },
+    });
+
+    if (!institution) {
+      throw new NotFoundError('Institution profile for user', userId);
+    }
+
+    const email = input.email.toLowerCase();
+    let studentUser = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!studentUser) {
+      const passwordHash = await argon2.hash('StudentPass123!', APP_CONSTANTS.ARGON2_PARAMS);
+      studentUser = await prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          firstName: input.firstName,
+          lastName: input.lastName,
+          role: UserRole.STUDENT,
+          isEmailVerified: true,
+        },
+      });
+    }
+
+    const existingStudent = await prisma.student.findFirst({
+      where: {
+        OR: [
+          { userId: studentUser.id },
+          { enrollmentNumber: input.enrollmentNumber },
+        ],
+      },
+    });
+
+    if (existingStudent) {
+      throw new ValidationError('A student with this email or enrollment number already exists');
+    }
+
+    const student = await prisma.student.create({
+      data: {
+        userId: studentUser.id,
+        institutionId: institution.id,
+        enrollmentNumber: input.enrollmentNumber,
+        department: input.department,
+        batchYear: input.batchYear,
+      },
+      include: {
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        credentials: {
+          select: {
+            id: true,
+            status: true,
+            degreeName: true,
+            cgpaRaw: true,
+            issuedAt: true,
+          },
+        },
+      },
+    });
+
+    return student;
   }
 }
 

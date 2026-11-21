@@ -241,6 +241,20 @@ export const api = {
         method: 'GET',
       });
     },
+
+    async enrollStudent(payload: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      enrollmentNumber: string;
+      department: string;
+      batchYear: number;
+    }) {
+      return request<{ student: any }>('/api/v1/institutions/students', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    },
   },
 
   admin: {
