@@ -3,7 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Layers, Building2, ClipboardList, Pause, Plus } from 'lucide-react';
+import { Layers, Building2, ClipboardList, Pause, Plus, ShieldCheck } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 export default function AdminLayout({
   children,
@@ -11,6 +12,13 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  const firstName = user?.firstName || 'Consortium';
+  const lastName = user?.lastName || 'Admin';
+  const fullName = user?.firstName ? `${user.firstName} ${user.lastName}`.trim() : 'Consortium Administrator';
+  const email = user?.email || 'admin@vericred.net';
+  const initials = `${firstName[0] || 'C'}${lastName[0] || 'A'}`.toUpperCase();
 
   const navItems = [
     { name: 'Overview', href: '/admin/overview', icon: Layers },
@@ -36,7 +44,7 @@ export default function AdminLayout({
             <div className="h-16 w-16 shrink-0 rounded-2xl bg-gradient-to-tr from-[#458BFF] via-[#45D7E0] to-[#4AD2A0] p-[1.5px] shadow-lg shadow-[#458BFF]/25">
               <div className="flex h-full w-full items-center justify-center rounded-[14px] bg-[#080D1A]">
                 <span className="bg-gradient-to-br from-[#45D7E0] to-[#458BFF] bg-clip-text text-xl font-black text-transparent select-none">
-                  CG
+                  {initials}
                 </span>
               </div>
             </div>
@@ -45,14 +53,16 @@ export default function AdminLayout({
             <div>
               <div className="flex flex-wrap items-center gap-2.5">
                 <h1 className="text-2xl font-black tracking-tight text-white">
-                  Consortium Administrator
+                  {fullName}
                 </h1>
                 <span className="rounded-full border border-[#458BFF]/30 bg-[#458BFF]/10 px-3 py-0.5 text-xs font-bold text-[#458BFF]">
                   ADMIN
                 </span>
               </div>
               <p className="mt-1 text-xs font-medium text-slate-400">
-                Multi-Sig Governance Authority
+                <span className="text-slate-300 font-mono">{email}</span>
+                <span className="mx-2 text-slate-600">•</span>
+                <span>Multi-Sig Governance Authority</span>
                 <span className="mx-2 text-slate-600">•</span>
                 <span className="text-[#4AD2A0]">3/4 Signatures Active</span>
               </p>

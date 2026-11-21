@@ -264,6 +264,23 @@ export const api = {
       });
     },
 
+    async createInstitution(payload: {
+      name: string;
+      shortCode: string;
+      contactEmail: string;
+      blockchainAddress?: string;
+    }) {
+      return request<{ institution: any; message: string }>('/api/v1/admin/institutions', {
+        method: 'POST',
+        body: JSON.stringify({
+          legalName: payload.name,
+          shortCode: payload.shortCode,
+          contactEmail: payload.contactEmail,
+          blockchainAddress: payload.blockchainAddress,
+        }),
+      });
+    },
+
     async getPendingInstitutions() {
       return request<{ institutions: any[] }>('/api/v1/admin/institutions/pending', {
         method: 'GET',

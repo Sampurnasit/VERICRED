@@ -12,17 +12,17 @@ import {
   Building,
   GraduationCap,
   ArrowRight,
-  CheckCircle2,
   KeyRound,
   Eye,
   EyeOff,
   AlertCircle,
+  Layers,
 } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
   const { register } = useAuth();
-  const [role, setRole] = useState<'STUDENT' | 'INSTITUTION'>('STUDENT');
+  const [role, setRole] = useState<'STUDENT' | 'INSTITUTION' | 'ADMIN'>('STUDENT');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -90,30 +90,42 @@ export default function RegisterPage() {
 
         <div className="glass-card rounded-2xl p-6 sm:p-8 border border-[#1A2A48] shadow-2xl space-y-6">
           {/* Persona selector */}
-          <div className="grid grid-cols-2 gap-2 rounded-xl bg-[#080D1A] p-1.5 border border-[#1A2A48]">
+          <div className="grid grid-cols-3 gap-2 rounded-xl bg-[#080D1A] p-1.5 border border-[#1A2A48]">
             <button
               type="button"
               onClick={() => setRole('STUDENT')}
-              className={`flex items-center justify-center gap-2 py-2.5 text-xs font-semibold rounded-lg transition ${
+              className={`flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-semibold rounded-lg transition ${
                 role === 'STUDENT'
                   ? 'bg-gradient-to-r from-[#458BFF] to-[#3B82F6] text-white shadow-md'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <GraduationCap className="h-4 w-4" />
-              Student Credential Holder
+              <GraduationCap className="h-3.5 w-3.5" />
+              Student
             </button>
             <button
               type="button"
               onClick={() => setRole('INSTITUTION')}
-              className={`flex items-center justify-center gap-2 py-2.5 text-xs font-semibold rounded-lg transition ${
+              className={`flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-semibold rounded-lg transition ${
                 role === 'INSTITUTION'
                   ? 'bg-gradient-to-r from-[#458BFF] to-[#3B82F6] text-white shadow-md'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Building className="h-4 w-4" />
-              Academic Issuer
+              <Building className="h-3.5 w-3.5" />
+              Institution
+            </button>
+            <button
+              type="button"
+              onClick={() => setRole('ADMIN')}
+              className={`flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-semibold rounded-lg transition ${
+                role === 'ADMIN'
+                  ? 'bg-gradient-to-r from-[#458BFF] to-[#3B82F6] text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Admin
             </button>
           </div>
 
@@ -180,7 +192,13 @@ export default function RegisterPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={role === 'STUDENT' ? 'student@rcciit.ac.in' : 'registrar@rcciit.ac.in'}
+                  placeholder={
+                    role === 'STUDENT'
+                      ? 'student@rcciit.ac.in'
+                      : role === 'INSTITUTION'
+                      ? 'registrar@rcciit.ac.in'
+                      : 'admin@vericred.net'
+                  }
                   className="w-full rounded-xl border border-[#1A2A48] bg-[#0B1226] pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:border-[#458BFF] focus:outline-none"
                 />
               </div>
@@ -231,7 +249,7 @@ export default function RegisterPage() {
                 'Deriving Cryptographic Identity...'
               ) : (
                 <>
-                  Register as {role === 'STUDENT' ? 'Student' : 'Accredited Institution'}
+                  Register as {role === 'STUDENT' ? 'Student' : role === 'INSTITUTION' ? 'Accredited Institution' : 'Consortium Administrator'}
                   <ArrowRight className="h-4 w-4" />
                 </>
               )}

@@ -11,6 +11,7 @@ router.use(authenticate, requireRole([UserRole.ADMIN]));
 
 router.get('/institutions/pending', adminController.getPendingInstitutions);
 router.get('/institutions', adminController.getAllInstitutions);
+router.post('/institutions', adminController.createInstitution);
 router.post('/institutions/:id/approve', adminController.approveInstitution);
 router.post('/institutions/:id/reject', adminController.rejectInstitution);
 router.post('/institutions/:id/suspend', adminController.suspendInstitution);

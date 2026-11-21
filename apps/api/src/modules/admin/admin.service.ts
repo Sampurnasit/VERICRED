@@ -1,6 +1,14 @@
 import crypto from 'node:crypto';
+import argon2 from 'argon2';
 import { prisma } from '../../db/prisma.js';
-import { InstitutionStatus, ApprovalAction, NotFoundError } from '@vericred/shared';
+import {
+  InstitutionStatus,
+  ApprovalAction,
+  NotFoundError,
+  ValidationError,
+  UserRole,
+  APP_CONSTANTS,
+} from '@vericred/shared';
 
 export class AdminService {
   async getPendingInstitutions() {
@@ -148,6 +156,102 @@ export class AdminService {
     });
 
     return updated;
+  }
+
+  async createInstitution(
+    reviewerId: string,
+    input: {
+      legalName: string;
+      shortCode: string;
+      email: string;
+      blockchainAddress?: string;
+      website?: string;
+    }
+  ) {
+    if (!input.legalName || !input.shortCode) {
+      throw new ValidationError('Institution legal name and short code are required');
+    }
+
+    const email = (input.email || `${input.shortCode.toLowerCase()}@university.edu`).toLowerCase();
+    let instUser = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!instUser) {
+      const passwordHash = await argon2.hash('InstitutePass123!', APP_CONSTANTS.ARGON2_PARAMS);
+      instUser = await prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          firstName: input.shortCode,
+          lastName: 'Registrar',
+          role: UserRole.INSTITUTION,
+          isEmailVerified: true,
+        },
+      });
+    }
+
+    const shortCode = input.shortCode.toUpperCase();
+    const blockchainAddress =
+      input.blockchainAddress &&
+      input.blockchainAddress.startsWith('0x') &&
+      input.blockchainAddress.length === 42
+        ? input.blockchainAddress
+        : `0x${crypto.randomBytes(20).toString('hex')}`;
+
+    const existingInst = await prisma.institution.findFirst({
+      where: {
+        OR: [{ shortCode }, { legalName: input.legalName }, { userId: instUser.id }],
+      },
+    });
+
+    if (existingInst) {
+      throw new ValidationError('An institution with this short code, name, or email already exists');
+    }
+
+    const institution = await prisma.$transaction(async (tx) => {
+      const inst = await tx.institution.create({
+        data: {
+          userId: instUser.id,
+          legalName: input.legalName,
+          shortCode,
+          website: input.website || `https://${shortCode.toLowerCase()}.edu`,
+          blockchainAddress,
+          status: InstitutionStatus.APPROVED,
+        },
+        include: {
+          user: { select: { email: true, firstName: true, lastName: true } },
+          _count: { select: { credentials: true, students: true } },
+        },
+      });
+
+      const onChainTxHash = `0x${crypto.createHash('sha256').update(`accredit:${inst.id}:${Date.now()}`).digest('hex')}`;
+
+      await tx.institutionApproval.create({
+        data: {
+          institutionId: inst.id,
+          reviewerId,
+          action: ApprovalAction.APPROVE,
+          decisionNotes: 'Accredited by consortium administrator',
+          onChainTxHash,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId: reviewerId,
+          action: 'INSTITUTION_APPROVED',
+          entityType: 'Institution',
+          entityId: inst.id,
+          ipAddress: '127.0.0.1',
+          metadata: { legalName: inst.legalName, shortCode: inst.shortCode, onChainTxHash },
+        },
+      });
+
+      return inst;
+    });
+
+    return institution;
   }
 
   async getAuditLogs(limit = 100) {

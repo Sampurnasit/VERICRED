@@ -35,17 +35,22 @@ export default function AdminOverviewPage() {
   ]);
 
   useEffect(() => {
+    let cached: any[] = [];
+    try {
+      const stored = JSON.parse(localStorage.getItem('vericred_admin_institutions_cache') || '[]');
+      if (Array.isArray(stored)) cached = stored;
+    } catch {}
+
     api.admin
       .getAllInstitutions()
       .then((res) => {
-        if (res?.institutions && res.institutions.length > 0) {
+        if (res?.institutions) {
           const approved = res.institutions.filter((i) => i.status === 'APPROVED');
           const pending = res.institutions.filter((i) => i.status === 'PENDING');
-          setApprovedCount(approved.length || 1);
+          const approvedCountVal = approved.length + cached.filter((c) => c.status === 'APPROVED').length;
+          setApprovedCount(approvedCountVal || 1);
           setPendingCount(pending.length);
-          if (pending.length > 0) {
-            setPendingList(pending);
-          }
+          setPendingList(pending);
           const credCount = res.institutions.reduce((sum, i) => sum + (i._count?.credentials || 0), 0);
           if (credCount > 0) setTotalCredsCount(credCount);
         }
@@ -193,7 +198,15 @@ export default function AdminOverviewPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1A2A48]/50 text-slate-300">
-              {pendingList.map((inst) => (
+              {pendingList.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-slate-400">
+                    <CheckCircle2 className="h-6 w-6 text-[#4AD2A0] mx-auto mb-2" />
+                    All institutional accreditations are up to date. Zero universities pending review.
+                  </td>
+                </tr>
+              ) : (
+                pendingList.map((inst) => (
                 <tr key={inst.id} className="hover:bg-[#1A2A48]/30 transition">
                   <td className="py-4 px-6 font-semibold text-white">
                     <div className="flex items-center gap-2.5">
@@ -219,7 +232,7 @@ export default function AdminOverviewPage() {
                     </Link>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>

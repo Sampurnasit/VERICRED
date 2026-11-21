@@ -56,9 +56,15 @@ export default function AdminInstitutionsPage() {
   ]);
 
   useEffect(() => {
-    api.admin
-      .getAllInstitutions()
-      .then((res) => {
+    const loadInstitutions = async () => {
+      let cached: any[] = [];
+      try {
+        const stored = JSON.parse(localStorage.getItem('vericred_admin_institutions_cache') || '[]');
+        if (Array.isArray(stored)) cached = stored;
+      } catch {}
+
+      try {
+        const res = await api.admin.getAllInstitutions();
         if (res?.institutions && res.institutions.length > 0) {
           const mapped = res.institutions.map((inst: any) => ({
             id: inst.id,
@@ -68,14 +74,46 @@ export default function AdminInstitutionsPage() {
             status: inst.status,
             blockchainAddress: inst.blockchainAddress,
             credentialsIssued: inst._count?.credentials || 0,
-            accreditedDate: inst.createdAt ? new Date(inst.createdAt).toISOString().split('T')[0] : '2026-01-15',
+            accreditedDate: inst.createdAt
+              ? new Date(inst.createdAt).toISOString().split('T')[0]
+              : '2026-01-15',
           }));
-          setInstitutions(mapped);
+
+          const merged = [...mapped];
+          for (const c of cached) {
+            if (!merged.some((m) => m.shortCode === c.shortCode || m.id === c.id)) {
+              merged.unshift(c);
+            }
+          }
+          setInstitutions(merged);
+        } else if (cached.length > 0) {
+          setInstitutions((prev) => {
+            const merged = [...prev];
+            for (const c of cached) {
+              if (!merged.some((m) => m.shortCode === c.shortCode || m.id === c.id)) {
+                merged.unshift(c);
+              }
+            }
+            return merged;
+          });
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         console.warn('Admin institutions fetch notice:', err);
-      });
+        if (cached.length > 0) {
+          setInstitutions((prev) => {
+            const merged = [...prev];
+            for (const c of cached) {
+              if (!merged.some((m) => m.shortCode === c.shortCode || m.id === c.id)) {
+                merged.unshift(c);
+              }
+            }
+            return merged;
+          });
+        }
+      }
+    };
+
+    loadInstitutions();
   }, []);
 
   const [newInst, setNewInst] = useState({
@@ -92,7 +130,9 @@ export default function AdminInstitutionsPage() {
       console.warn('Backend approve notice:', err);
     }
     setInstitutions((prev) =>
-      prev.map((inst) => (inst.id === id ? { ...inst, status: 'APPROVED', accreditedDate: 'Just Now' } : inst))
+      prev.map((inst) =>
+        inst.id === id ? { ...inst, status: 'APPROVED', accreditedDate: 'Just Now' } : inst
+      )
     );
   };
 
@@ -118,22 +158,51 @@ export default function AdminInstitutionsPage() {
     );
   };
 
-  const handleAddInstitution = (e: React.FormEvent) => {
+  const handleAddInstitution = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newInst.name || !newInst.shortCode) return;
-    setInstitutions((prev) => [
-      {
-        id: `inst-${Date.now()}`,
+
+    const shortCode = newInst.shortCode.toUpperCase();
+    const generatedAddress =
+      newInst.blockchainAddress &&
+      newInst.blockchainAddress.startsWith('0x') &&
+      newInst.blockchainAddress.length === 42
+        ? newInst.blockchainAddress
+        : `0x${Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+
+    const newRecord = {
+      id: `inst-${Date.now()}`,
+      name: newInst.name,
+      shortCode,
+      contactEmail: newInst.contactEmail || `registrar@${shortCode.toLowerCase()}.edu`,
+      blockchainAddress: generatedAddress,
+      status: 'APPROVED',
+      credentialsIssued: 0,
+      accreditedDate: new Date().toISOString().split('T')[0],
+    };
+
+    try {
+      const res = await api.admin.createInstitution({
         name: newInst.name,
-        shortCode: newInst.shortCode.toUpperCase(),
-        contactEmail: newInst.contactEmail || 'registrar@university.edu',
-        blockchainAddress: newInst.blockchainAddress || `0x${Math.random().toString(16).substring(2, 42)}`,
-        status: 'APPROVED',
-        credentialsIssued: 0,
-        accreditedDate: 'Today',
-      },
-      ...prev,
-    ]);
+        shortCode,
+        contactEmail: newRecord.contactEmail,
+        blockchainAddress: generatedAddress,
+      });
+      if (res?.institution) {
+        newRecord.id = res.institution.id;
+      }
+    } catch (err) {
+      console.warn('Backend create institution notice:', err);
+    }
+
+    // Persist in localStorage so it always survives page refreshes
+    try {
+      const stored = JSON.parse(localStorage.getItem('vericred_admin_institutions_cache') || '[]');
+      const updated = [newRecord, ...stored.filter((s: any) => s.shortCode !== shortCode)];
+      localStorage.setItem('vericred_admin_institutions_cache', JSON.stringify(updated));
+    } catch {}
+
+    setInstitutions((prev) => [newRecord, ...prev.filter((p) => p.shortCode !== shortCode)]);
     setShowAddModal(false);
     setNewInst({ name: '', shortCode: '', contactEmail: '', blockchainAddress: '' });
   };

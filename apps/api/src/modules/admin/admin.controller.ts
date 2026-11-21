@@ -66,6 +66,22 @@ export class AdminController {
     }
   }
 
+  async createInstitution(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { name, legalName, shortCode, contactEmail, email, blockchainAddress, website } = req.body;
+      const institution = await adminService.createInstitution(req.user!.userId, {
+        legalName: legalName || name,
+        shortCode,
+        email: contactEmail || email,
+        blockchainAddress,
+        website,
+      });
+      sendSuccess(res, { institution, message: 'Institution accredited successfully' }, 201);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async getAuditLogs(req: Request, res: Response, next: NextFunction) {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
