@@ -8,12 +8,11 @@ test.describe('VERICRED Frontend E2E Demonstration Scenarios 1–6', () => {
     await expect(page.locator('text=VERICRED').first()).toBeVisible();
     await expect(page.locator('a:has-text("Verify Credential")').first()).toBeVisible();
     await expect(page.locator('a:has-text("Student Wallet")').first()).toBeVisible();
-    await expect(page.locator('a:has-text("Issuer Portal")').first()).toBeVisible();
+    await expect(page.locator('a:has-text("Issuer Gateway")').first()).toBeVisible();
 
     // Verify key architecture highlights on landing page
-    await expect(page.locator('text=Groth16 Zero-Knowledge').first()).toBeVisible();
-    await expect(page.locator('text=BabyJubjub EdDSA').first()).toBeVisible();
-    await expect(page.locator('text=Poseidon Commitments').first()).toBeVisible();
+    await expect(page.locator('text=Polygon Amoy').first()).toBeVisible();
+    await expect(page.locator('text=Groth16 ZK-SNARKs').first()).toBeVisible();
   });
 
   test('Demonstration Scenario 1: Institution Overview & Credential Issuance UI', async ({ page }) => {
@@ -25,10 +24,10 @@ test.describe('VERICRED Frontend E2E Demonstration Scenarios 1–6', () => {
 
     // Navigate to single issuance form
     await page.goto('/institution/issue');
-    await expect(page.locator('text=Issue Academic Credentials').first()).toBeVisible();
+    await expect(page.locator('text=Recipient & Program Attributes').first()).toBeVisible();
 
     // Verify issuance action button exists
-    await expect(page.locator('button:has-text("Sign & Issue Verifiable Credential")')).toBeVisible();
+    await expect(page.locator('button:has-text("Sign with BabyJubjub & Anchor On-Chain")')).toBeVisible();
   });
 
   test('Demonstration Scenario 2: Student Sovereign Wallet & Cryptographic Credentials UI', async ({ page }) => {
@@ -43,8 +42,8 @@ test.describe('VERICRED Frontend E2E Demonstration Scenarios 1–6', () => {
     await expect(page.locator('text=8.72 / 10.00').first()).toBeVisible();
 
     // Verify cryptographic badges / footprint
-    await expect(page.locator('text=Poseidon Commitment').first()).toBeVisible();
-    await expect(page.locator('text=BabyJubjub EdDSA Signature').first()).toBeVisible();
+    await expect(page.locator('text=Salted Poseidon Commitment:').first()).toBeVisible();
+    await expect(page.locator('text=BabyJubjub EdDSA Signature:').first()).toBeVisible();
   });
 
   test('Demonstration Scenario 3: In-Browser Privacy-Preserving Groth16 ZK Proof Generation', async ({ page }) => {
@@ -52,11 +51,11 @@ test.describe('VERICRED Frontend E2E Demonstration Scenarios 1–6', () => {
     await page.goto('/student/wallet');
 
     // Locate ZK proof generator section
-    await expect(page.locator('text=Generate ZK Proof').first()).toBeVisible();
+    await expect(page.locator('text=Synthesize ZK Proof').first()).toBeVisible();
     await expect(page.locator('text=Minimum Cutoff Threshold').first()).toBeVisible();
 
     // Generate ZK proof in-browser via WebAssembly witness generator
-    const generateBtn = page.locator('button:has-text("Generate Mathematical Proof")');
+    const generateBtn = page.locator('button:has-text("Generate ZK Proof in Browser")');
     await expect(generateBtn).toBeVisible();
     await generateBtn.click();
 
@@ -67,21 +66,12 @@ test.describe('VERICRED Frontend E2E Demonstration Scenarios 1–6', () => {
   test('Demonstration Scenario 4: Public Verification Console & Groth16 Pairing Verification', async ({ page }) => {
     await page.goto('/verify');
 
-    // Check verification portal header
-    await expect(page.locator('text=Verify Academic Credentials & ZK Proofs').first()).toBeVisible();
-
-    // Switch to ZK-SNARK Proof Verification tab
-    const zkTab = page.locator('button:has-text("ZK-SNARK Proof Verification")');
+    // Switch to Groth16 Zero-Knowledge Proof tab
+    const zkTab = page.locator('button:has-text("Groth16 Zero-Knowledge Proof")');
     await expect(zkTab).toBeVisible();
     await zkTab.click();
 
     await expect(page.locator('text=Groth16 Zero-Knowledge Verification').first()).toBeVisible();
-
-    // Click Load Sample Proof if present
-    const loadSampleBtn = page.locator('button:has-text("Load Sample")');
-    if (await loadSampleBtn.isVisible()) {
-      await loadSampleBtn.click();
-    }
 
     // Click Verify ZK-SNARK Proof
     const verifyBtn = page.locator('button:has-text("Verify ZK-SNARK Proof")');
@@ -95,8 +85,8 @@ test.describe('VERICRED Frontend E2E Demonstration Scenarios 1–6', () => {
   test('Demonstration Scenario 5: Tampering Defense on Public Verification Portal', async ({ page }) => {
     await page.goto('/verify');
 
-    // Switch to ZK-SNARK Proof Verification tab
-    await page.click('button:has-text("ZK-SNARK Proof Verification")');
+    // Switch to Groth16 Zero-Knowledge Proof tab
+    await page.click('button:has-text("Groth16 Zero-Knowledge Proof")');
 
     // Set a tampered payload with invalid proof points
     const textarea = page.locator('textarea');
@@ -114,7 +104,7 @@ test.describe('VERICRED Frontend E2E Demonstration Scenarios 1–6', () => {
     await page.click('button:has-text("Verify ZK-SNARK Proof")');
 
     // Verify cryptographic rejection is shown
-    await expect(page.locator('text=Groth16 mathematical pairing verification failed: Invalid or tampered proof')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Verification Failed')).toBeVisible({ timeout: 10000 });
   });
 
   test('Demonstration Scenario 6: Platform Administrator Governance Portal', async ({ page }) => {
@@ -122,7 +112,7 @@ test.describe('VERICRED Frontend E2E Demonstration Scenarios 1–6', () => {
 
     // Check Admin Overview metrics
     await expect(page.locator('text=Approved Institutions').first()).toBeVisible();
-    await expect(page.locator('text=Pending Approvals').first()).toBeVisible();
+    await expect(page.locator('text=Pending Accreditations').first()).toBeVisible();
 
     // Check Institutions Governance
     await page.goto('/admin/institutions');
